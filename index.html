@@ -5242,11 +5242,17 @@ function voNoteAt(t) {
   while (lo <= hi) { const mid = (lo + hi) >> 1; if (ns[mid][0] <= t) { k = mid; lo = mid + 1; } else hi = mid - 1; }
   return k >= 0 && t < ns[k][0] + ns[k][1] ? k : -1;
 }
+const voSd = r => r && r.cn >= 5 ? Math.sqrt(Math.max(0, r.cs2 / r.cn - (r.cs / r.cn) ** 2)) : null;
 function voScoreUi() {
   const el = $("voScore"); if (!el) return;
   let n = 0, hit = 0, dev = 0, dn = 0;
-  VO.res.forEach(r => { if (r.n < 4) return; n++; if (r.ok / r.n >= 0.5) hit++; dev += r.dev; dn += r.ok; });
-  el.innerHTML = n ? `<span>Note prese <b>${hit}/${n}</b> (${Math.round(100 * hit / n)}%)</span><span>Scarto medio <b>${dn ? Math.round(dev / dn) : "–"}</b> cent</span>` + (VO.cur ? `<span>Stai cantando <b>${tuMidiName(Math.round(VO.cur))}</b></span>` : "")
+  let rs = 0, rn = 0, ss = 0, sn = 0;
+  VO.res.forEach(r => {
+    if (r.n < 4) return; n++; if (r.ok / r.n >= 0.5) hit++; dev += r.dev; dn += r.ok;
+    if (r.reach != null) { rs += r.reach; rn++; const sd = voSd(r); if (sd != null) { ss += sd; sn++; } }
+  });
+  el.innerHTML = n ? `<span>Note prese <b>${hit}/${n}</b> (${Math.round(100 * hit / n)}%)</span><span>Scarto medio <b>${dn ? Math.round(dev / dn) : "–"}</b> cent</span>` +
+    (rn ? `<span>Tempo per arrivarci <b>${sgSec(rs / rn)}</b> in media</span>` : "") + (sn ? `<span>Stabilità <b>${sgStab(ss / sn)}</b> (±${Math.round(ss / sn)} cent)</span>` : "") + (VO.cur ? `<span>Stai cantando <b>${tuMidiName(Math.round(VO.cur))}</b></span>` : "")
     : VO.on ? (VO.cur ? `<span>Stai cantando <b>${tuMidiName(Math.round(VO.cur))}</b></span>` : `<span>Ti ascolto… fai partire il brano e canta.</span>`) : "";
 }
 // ---- microfono
@@ -5297,7 +5303,18 @@ function voLoop() {
       const k = voNoteAt(tt); let shown = m;
       if (m != null && k >= 0) {
         const tgt = VO.notes[k][2] + semis; let dd = m - tgt; if (st.voOct) { const o = 12 * Math.round(dd / 12); dd -= o; shown = m - o; }
-        const r = VO.res.get(k) || { n: 0, ok: 0, dev: 0 }; r.n++; if (Math.abs(dd) <= 0.5) { r.ok++; r.dev += Math.abs(dd) * 100; } VO.res.set(k, r);
+        const r = VO.res.get(k) || { n: 0, ok: 0, dev: 0 }; r.n++;
+        if (Math.abs(dd) <= 0.5) {
+          r.ok++; r.dev += Math.abs(dd) * 100;
+          // come nell'esercizio di intonazione: tempo per arrivarci = dall'inizio della nota all'ingresso nella fascia
+          // in cui poi resti (uscite più brevi di 0,15 s non contano); stabilità = deviazione standard dei cent da lì in poi
+          if (r.inS == null || tt - r.lastIn > 0.15) r.inS = tt;
+          r.lastIn = tt;
+          const nt = VO.notes[k], hold = Math.min(0.25, 0.4 * nt[1]);
+          if (r.reach == null && tt - r.inS >= hold) { r.reach = Math.max(0, r.inS - nt[0]); r.cs = r.cs2 = r.cn = 0; }
+          if (r.reach != null) { const c = dd * 100; r.cs += c; r.cs2 += c * c; r.cn++; }
+        }
+        VO.res.set(k, r);
       } else if (k >= 0) { const r = VO.res.get(k) || { n: 0, ok: 0, dev: 0 }; r.n++; VO.res.set(k, r); }
       else if (m != null && st.voOct) {                                    // tra una nota e l'altra: ottava della nota più vicina
         const ns = VO.notes; let best = null; for (let j = Math.max(0, voNoteAt(tt + 0.5) - 1); j < ns.length && ns[j][0] < tt + 2; j++) if (ns[j][0] + ns[j][1] > tt - 2) best = ns[j];
@@ -5389,7 +5406,9 @@ function voDraw() {
 function voEditUi() {
   const has = VO.sel >= 0 && VO.notes?.[VO.sel];
   $("voEdit").hidden = !has && !VO.undo.length;
-  $("voSelTxt").textContent = has ? `Nota: ${tuMidiName(VO.notes[VO.sel][2] + (PL.semis || 0))} a ${fmtT(VO.notes[VO.sel][0])}` : "Nessuna nota scelta";
+  const rr = has ? VO.res.get(VO.sel) : null, sd = voSd(rr);
+  $("voSelTxt").textContent = has ? `Nota: ${tuMidiName(VO.notes[VO.sel][2] + (PL.semis || 0))} a ${fmtT(VO.notes[VO.sel][0])}` +
+    (rr?.reach != null ? ` · presa in ${sgSec(rr.reach)}${sd != null ? ` · ${sgStab(sd)} (±${Math.round(sd)} cent)` : ""}` : rr && rr.n >= 4 ? " · non presa" : "") : "Nessuna nota scelta";
   $("voEdit").querySelectorAll("[data-voe]").forEach(b => { if (b.dataset.voe !== "undo") b.disabled = !has; });
   $("voUndo").disabled = !VO.undo.length;
 }
