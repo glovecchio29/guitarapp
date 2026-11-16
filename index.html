@@ -871,6 +871,81 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
 .vo-sel { font-weight: 600; min-width: 120px; }
 #voMic[aria-pressed="true"] { background: #e5484d; border-color: #e5484d; color: #fff; }
 @media (max-width: 640px) { .vo-cv { height: 200px; } }
+.plm-off { display: none !important; }
+#plChTools { flex-wrap: nowrap; align-items: center; gap: 6px; }
+#plChTools details.more > summary { display: inline-flex; align-items: center; justify-content: center; font-size: 18px; letter-spacing: 1px; }
+.pl-modes { display: flex; width: 100%; }
+.pl-modes button { flex: 1; font-size: 15px; padding: 10px 6px; }
+.pl-nowmini { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; padding: 10px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); position: sticky; top: 8px; z-index: 5; }
+.pl-nowmini b { font-size: 20px; margin-right: 10px; }
+.pl-nowmini #nmNext { color: var(--muted); font-size: 17px; }
+.pl-nowmini small { color: var(--muted); }
+.pl-prep { padding: 14px 18px; }
+.pp-head { display: flex; align-items: center; gap: 14px; }
+.pp-head h2 { margin: 0; font-size: 16px; white-space: nowrap; }
+.pp-bar { flex: 1; margin: 0; }
+.pp-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; }
+.pp-list li { display: grid; grid-template-columns: 22px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; }
+.pp-ico { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--line); color: var(--muted); }
+.pp-ok .pp-ico { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.pp-run .pp-ico { animation: pp-pulse 1s ease-in-out infinite alternate; }
+@keyframes pp-pulse { to { background: var(--surface-2); } }
+.pp-name { font-weight: 600; font-size: 14px; }
+.pp-st { font-size: 13px; color: var(--muted); }
+.pp-st .btn { padding: 4px 10px; font-size: 13px; min-height: 0; margin-top: 2px; }
+.pp-ok { cursor: pointer; }
+.pl-prep.pp-done { padding: 10px 16px; }
+.pl-prep.pp-done .pp-list { margin-top: 6px; }
+details.more { position: relative; }
+details.more > summary { list-style: none; cursor: pointer; }
+details.more > summary::-webkit-details-marker { display: none; }
+.more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; gap: 6px; padding: 8px; min-width: 220px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.more-menu .btn { justify-content: flex-start; width: 100%; }
+.pl-sheet { position: fixed; z-index: 60; top: 70px; right: 24px; width: min(560px, calc(100vw - 48px)); max-height: calc(100vh - 100px); overflow: auto; display: grid; gap: 14px; }
+.pl-sheet .pl-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.pl-sheet > section, .pl-sheet .pl-grid > section { border: 1px solid var(--line); box-shadow: none; }
+.dk-ctl { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; }
+.dk-ctl .ic { width: 20px; height: 20px; }
+.dk-ctl-txt { display: grid; line-height: 1.1; text-align: left; }
+.dk-ctl-txt b { font-size: 14px; } .dk-ctl-txt small { font-size: 11px; color: var(--muted); font-weight: 500; }
+@media (max-width: 760px) {
+  .pl-sheet { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 84vh; border-radius: 18px 18px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .pl-modes button { font-size: 14px; padding: 9px 2px; }
+  .dock[data-for="player"] { flex-wrap: nowrap; }
+  .dock[data-for="player"] .dk-tr { gap: 4px; }
+  .dk-ctl { padding: 0 8px; } .dk-ctl-txt { display: none; }
+  .pl-prep { padding: 12px 14px; }
+  .pp-list { grid-template-columns: 1fr 1fr; gap: 10px 10px; margin-top: 8px; }
+  .pp-name { font-size: 13px; } .pp-st { font-size: 12px; }
+  .pp-head h2 { font-size: 15px; }
+}
+.help { display: none; }
+.show-help .help { display: block; }
+.help-btn { width: 30px; height: 30px; min-width: 30px; padding: 0; border-radius: 50%; font-weight: 700; margin-left: auto; }
+.help-btn.inline { width: 22px; height: 22px; min-width: 22px; min-height: 0; font-size: 12px; vertical-align: middle; margin-left: 4px; }
+.show-help .help-btn { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.card-head .help-btn + .grp, .card-head .help-btn + details { margin-left: 8px; }
+.btn.linkish { background: none; border: 0; padding: 0; min-height: 0; text-decoration: underline; color: var(--fg); font: inherit; cursor: pointer; }
+.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; border-radius: 11px; background: var(--line); position: relative; margin: 0; cursor: pointer; transition: background .15s; flex: none; }
+.check input[type="checkbox"]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.check input[type="checkbox"]:checked { background: var(--fg); }
+.check input[type="checkbox"]:checked::after { transform: translateX(16px); background: var(--bg); }
+.check input[type="checkbox"]:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.lib-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.trk-rows { display: grid; gap: 10px; }
+.trk-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; }
+.trk-name { font-weight: 600; } .trk-st { color: var(--muted); font-size: 13px; }
+.trk-mix { flex-direction: row; align-items: center; gap: 10px; }
+.trk-mix input { flex: 1; } .trk-mix output { min-width: 110px; font-weight: 600; }
+.trk-auto { margin-top: 6px; } .trk-auto .stems { opacity: .55; pointer-events: none; }
+.tempo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 2px 0 10px; }
+.tempo-row > b { margin-right: 4px; }
+.tempo-row .btn { padding: 4px 10px; min-height: 0; font-size: 13px; }
+.tempo-meter { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+.tempo-meter select { width: auto; padding: 4px 8px; }
+.mic-note { margin: 8px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
+.mic-note a { color: var(--fg); font-weight: 600; }
 </style>
 
 <div class="app">
@@ -942,12 +1017,18 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
           <button class="tbtn" id="plFwd" aria-label="Avanti di 5 secondi">+5s</button>
           <button class="tbtn" id="plLoop" aria-pressed="false" aria-label="Ripeti il tratto"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 16"/><path d="M4 20v-4h4"/></svg></button>
         </div>
-        <p class="hint center" id="plWaveHint">Tocca la forma d'onda per spostarti. Per scegliere un tratto da ripetere trascina col mouse, oppure col dito tieni premuto un attimo e poi trascina; puoi anche usare A e B mentre ascolti.</p>
+        <p class="hint center" id="plWaveHint">Tocca per spostarti · trascina per scegliere un tratto da ripetere <button class="btn icon help-btn inline" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button></p>
+        <p class="hint center help">Col mouse trascina sulla forma d'onda; col dito tieni premuto un attimo e poi trascina. Puoi anche usare A e B (in Controlli → Tratti da ripetere) mentre ascolti.</p>
       </section>
 
-      <section class="panel" aria-label="Accordi del brano">
+      <div class="seg pl-modes" id="plModes" role="tablist" aria-label="Cosa fare con il brano">
+        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata</button><button role="tab" data-plm="voice">Canta</button>
+      </div>
+      <section class="panel pl-prep" id="plPrep" aria-label="Prepara il brano" hidden></section>
+      <div class="pl-nowmini" id="plNowMini" hidden><span class="label">Adesso</span><b id="nmCur">–</b><span class="label">Poi</span><b id="nmNext">–</b><small id="nmIn"></small></div>
+      <section class="panel" aria-label="Accordi del brano" data-plm-of="chords">
         <div class="card-head">
-          <h2>Accordi del brano</h2>
+          <h2>Accordi del brano</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
           <div class="grp" id="plChTools"></div>
         </div>
         <div id="plChBody"></div>
@@ -990,16 +1071,17 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
         </div>
       </section>
 
-      <section class="panel" aria-label="Tablatura" id="plTab">
-        <div class="card-head"><h2>Tablatura</h2>
+      <section class="panel" aria-label="Tablatura" id="plTab" data-plm-of="tab">
+        <div class="card-head"><h2>Tablatura</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
           <div class="grp"><label class="btn file-btn">Importa Guitar Pro o MusicXML<input type="file" id="tbFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl"></label></div></div>
-        <p class="hint" id="tbHint">Se hai il file della tab del brano (Guitar Pro 3–8 o MusicXML, per esempio scaricato dal sito dove l'hai comprata o trovata), aprilo qui: vedi la tablatura e puoi mettere a tempo con il brano gli accordi che contiene.</p>
+        <p class="hint" id="tbHint">Apri il file Guitar Pro o MusicXML del brano: la tab scorre con la musica.</p>
+        <p class="hint help">Se hai il file della tab del brano (Guitar Pro 3–8 o MusicXML, per esempio scaricato dal sito dove l'hai comprata o trovata), aprilo qui: vedi la tablatura e puoi mettere a tempo con il brano gli accordi che contiene.</p>
         <div class="tb-bar" id="tbBar" hidden>
           <span class="tb-info" id="tbInfo"></span>
           <label class="field tb-track"><span class="label">Traccia</span><select id="tbTrack"></select></label>
           <div class="field tb-nudge"><span class="label">Tab rispetto al brano</span>
             <div class="grp"><button class="btn icon" data-tbn="-250" aria-label="Tab prima di un quarto di secondo">−</button><output id="tbOff">0,00 s</output><button class="btn icon" data-tbn="250" aria-label="Tab dopo di un quarto di secondo">+</button></div></div>
-          <button class="btn" id="tbAuto" aria-pressed="true">Scorrimento automatico: sì</button>
+          <label class="check"><input type="checkbox" id="tbAuto" checked> Scorrimento automatico</label>
           <button class="btn" id="tbFix" aria-pressed="false">Correggi l'aggancio</button>
           <button class="btn" id="tbFixReset" hidden>Togli le correzioni</button>
           <button class="btn" id="tbChords">Metti a tempo gli accordi del file</button>
@@ -1010,13 +1092,14 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
         <div class="tb-view" id="tbView" hidden></div>
       </section>
 
-      <section class="panel" aria-label="Pennata" id="plStrum" hidden>
-        <div class="card-head"><h2>Pennata</h2>
+      <section class="panel" aria-label="Pennata" id="plStrum" data-plm-of="strum" hidden>
+        <div class="card-head"><h2>Pennata</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
           <div class="grp"><button class="btn" id="stPreview">▶ Prova</button><label class="check"><input type="checkbox" id="stOver"> Suona sopra il brano</label></div></div>
         <div class="st-sugg" id="stSugg"></div>
         <div class="st-pick"><select id="stSel" aria-label="Pattern di pennata"></select><span class="hint" id="stInfo"></span></div>
         <div class="st-grid" id="stGrid" role="group" aria-label="Pattern: tocca una casella per cambiarla"></div>
-        <p class="hint">Frecce piene: colpisci le corde. Frecce chiare: la mano si muove lo stesso ma non tocca le corde. Tocca una casella per cambiarla: colpo, colpo accentato, smorzato (×), vuoto. Le caselle con la riga sotto e la freccia più grande sono accenti: colpisci più forte. Nelle pennate ricavate dal brano gli accenti vengono dalla forza dei colpi.</p>
+        <p class="hint">Tocca una casella per cambiarla: colpo, accentato, smorzato (×), vuoto.</p>
+        <p class="hint help">Frecce piene: colpisci le corde. Frecce chiare: la mano si muove lo stesso ma non tocca le corde. Le caselle con la riga sotto e la freccia più grande sono accenti: colpisci più forte. Nelle pennate ricavate dal brano gli accenti vengono dalla forza dei colpi.</p>
         <details class="explain st-book"><summary><h2>Consigli del libro</h2></summary>
           <ul class="st-tips">
             <li><b>Il polso è un pendolo.</b> Va giù e su di continuo, a tempo: giù sui battiti, su in levare. I colpi a vuoto non fermano la mano, servono solo a far suonare più a lungo l'accordo.</li>
@@ -1027,11 +1110,12 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
           </ul></details>
       </section>
 
-      <section class="panel" aria-label="Canta con il brano" id="plVoice">
-        <div class="card-head"><h2>Canta con il brano</h2>
+      <section class="panel" aria-label="Canta con il brano" id="plVoice" data-plm-of="voice">
+        <div class="card-head"><h2>Canta con il brano</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
           <div class="grp"><label class="btn file-btn" id="voFileBtn">Carica la traccia voce<input type="file" id="voFile" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
             <button class="btn primary" id="voMic" aria-pressed="false" hidden>🎤 Canta</button></div></div>
-        <p class="hint" id="voHint">Carica la traccia della sola voce di questo brano (per esempio <i>vocals.wav</i> ricavato con la separazione delle tracce): l'app ne ricava le note del cantante. Poi premi "Canta", fai partire il brano e segui le note: la tua voce appare come una linea sopra le note. Nell'app vera la voce si separerà da sola. Usa le cuffie, altrimenti il microfono sente anche il cantante.</p>
+        <p class="hint" id="voHint">Carica la traccia della voce di questo brano: l'app ne ricava le note del cantante.</p>
+        <p class="hint help">Carica la traccia della sola voce di questo brano (per esempio <i>vocals.wav</i> ricavato con la separazione delle tracce): l'app ne ricava le note del cantante. Poi premi "Canta", fai partire il brano e segui le note: la tua voce appare come una linea sopra le note. Nell'app vera la voce si separerà da sola. Usa le cuffie, altrimenti il microfono sente anche il cantante.</p>
         <p class="hint" id="voStatus" aria-live="polite"></p>
         <div class="vo-wrap" id="voWrap" hidden>
           <canvas class="vo-cv" id="voCv" aria-label="Note del cantante e la tua voce"></canvas>
@@ -1041,8 +1125,7 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
             <label class="check"><input type="checkbox" id="voGuide"> Suona la melodia</label>
             <label class="check"><input type="checkbox" id="voCurve"> Curva del cantante</label>
             <label class="field vo-lat"><span class="label">Ritardo del microfono</span><input type="range" id="voLat" min="0" max="400" step="10"><output id="voLatVal"></output></label>
-            <label class="btn file-btn" id="voBaseBtn">Carica la base senza voce<input type="file" id="voBase" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
-            <label class="field vo-lat" id="voMixF" hidden><span class="label">Voce originale</span><input type="range" id="voMix" min="0" max="100" step="5"><output id="voMixVal"></output></label>
+            <button class="btn" type="button" id="voToTracks">Abbassa la voce del cantante</button>
             <button class="btn" id="voReset">Azzera il punteggio</button>
             <button class="btn icon" id="voClose" aria-label="Togli le note della voce">✕</button>
           </div>
@@ -1052,7 +1135,8 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
             <button class="btn" data-voe="-12">Ottava giù</button><button class="btn" data-voe="12">Ottava su</button>
             <button class="btn" data-voe="del">Elimina</button><button class="btn" data-voe="undo" id="voUndo">Annulla</button>
           </div>
-          <p class="hint">Tocca una nota (a brano fermo) per sentirla e correggerla; tocca un punto vuoto per spostare il brano lì. Verde: nota presa, rosso: mancata.</p>
+          <p class="hint help">Tocca una nota (a brano fermo) per sentirla e correggerla; tocca un punto vuoto per spostare il brano lì. Nota piena con il bordo: presa; nota sbiadita: mancata. Se la tua linea arriva sempre in ritardo rispetto alle note, aumenta il ritardo del microfono.</p>
+          <p class="hint">Vuoi prima scaldare la voce? <button class="btn linkish" type="button" id="voToSing">Esercizio di intonazione</button></p>
         </div>
       </section>
 
@@ -1091,11 +1175,14 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
         <div class="sections" id="plSections"></div>
       </section>
 
-      <section class="panel soon" aria-label="Tracce">
-        <div class="card-head"><h2>Tracce</h2><button class="btn" disabled>Separa le tracce <span class="badge-soon">In arrivo</span></button></div>
-        <p class="hint">Separa voce e strumenti per ascoltarli da soli o toglierli: per esempio togli la chitarra e suona tu sopra la base. L'elaborazione avviene sul dispositivo.</p>
-        <div class="sep-opts" role="radiogroup" aria-label="Tipo di separazione" id="plSepOpts"></div>
-        <div class="stems" id="plStems"></div>
+      <section class="panel" aria-label="Tracce" id="plTracks">
+        <div class="card-head"><h2>Tracce</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button></div>
+        <div class="trk-rows" id="trkRows"></div>
+        <p class="hint help">Con la base senza voce e la traccia della voce di questo brano puoi abbassare o togliere il cantante e cantare al suo posto. Le due tracce devono venire da questo stesso file. Nel prototipo si caricano a mano; nell'app le separerà l'app da sola, sul dispositivo.</p>
+        <details class="explain trk-auto"><summary><h2>Separazione automatica <span class="badge-soon">nell'app</span></h2></summary>
+          <div class="sep-opts" role="radiogroup" aria-label="Tipo di separazione" id="plSepOpts"></div>
+          <div class="stems soon" id="plStems"></div>
+        </details>
       </section>
     </div>
 
@@ -3456,7 +3543,7 @@ function singRender(force) {
       <span class="hint">Note da ${sgName(lo)} a ${sgName(hi)}</span></div>`;
   const s = (st.earStats || {}).sing || {}; let ok = 0, n = 0; Object.values(s).forEach(([a, b]) => { ok += a; n += b; });
   box.innerHTML = `<button class="btn ear-back" data-back>‹ Tutti gli esercizi</button><div class="card-head"><h2>${ex.name}</h2><span class="ear-score">${n ? `${Math.round(100 * ok / n)}% delle note prese` : ""}</span></div>
-    <p class="hint">${ex.desc}</p>
+    <p class="hint">${ex.desc}</p>${typeof MIC_OK !== "undefined" && !MIC_OK ? MIC_NOTE : ""}<p class="hint">Pronto per un brano vero? <button class="btn linkish" type="button" data-to-song>Canta con il brano</button></p>
     <details class="ear-setd"${SG.phase === "idle" ? " open" : ""}><summary>Impostazioni dell'esercizio</summary><div class="ear-set">${optsHtml}${itemsHtml}${voiceSel}</div></details>
     <div class="sg-head"><div><div class="sg-ask" id="sgAsk">Premi Inizia: senti una nota, poi cantala.</div><div class="hint" id="sgHint"></div></div>
       <div class="sg-live" id="sgLive" data-state="idle"><b id="sgNote">–</b><span id="sgCents"></span></div></div>
@@ -3877,8 +3964,7 @@ function dockRender() {
     const bpm = `<div class="dk-grp" role="group" aria-label="Tempo"><button class="dk-step" data-bpm="-5" aria-label="Più lento">−</button><span class="dk-val"><b id="dkBpm"></b><small>BPM</small></span><button class="dk-step" data-bpm="5" aria-label="Più veloce">+</button></div>`;
     d.innerHTML = key === "player"
       ? `<div class="dk-grp dk-tr"><button class="dk-step" data-proxy="plStart" aria-label="Torna all'inizio del tratto"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14"/><path d="M18 6l-9 6 9 6z" fill="currentColor"/></svg></button><button class="dk-step" data-proxy="plBack" aria-label="Indietro di 5 secondi">−5</button><button class="dk-play" data-proxy="plPlay"></button><button class="dk-step" data-proxy="plFwd" aria-label="Avanti di 5 secondi">+5</button><button class="dk-step" data-proxy="plLoop" aria-label="Ripeti il tratto"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 16"/><path d="M4 20v-4h4"/></svg></button></div>
-         <div class="dk-grp" role="group" aria-label="Velocità"><button class="dk-step" data-sel="rateDown" aria-label="Più lento">−</button><span class="dk-val"><b id="dkRate"></b><small>velocità</small></span><button class="dk-step" data-sel="rateUp" aria-label="Più veloce">+</button></div>
-         <div class="dk-grp" role="group" aria-label="Tonalità"><button class="dk-step" data-sel="semiDown" aria-label="Mezzo tono sotto">−</button><span class="dk-val"><b id="dkSemi"></b><small>semitoni</small></span><button class="dk-step" data-sel="semiUp" aria-label="Mezzo tono sopra">+</button></div>`
+         <button class="dk-btn dk-ctl" data-sheet="1" aria-label="Controlli: velocità, tonalità, tratti, tracce"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dk-ctl-txt"><b id="dkRate"></b><small id="dkSemi"></small></span></button>`
       : `<button class="dk-play" data-proxy="play"></button>${key === "prog" ? `<button class="dk-btn" data-proxy="playMode"></button>` : ""}${bpm}${key === "prog" ? `<button class="dk-btn dk-more" data-goto="btPanel">Ritmo e suoni</button>` : ""}`;
   }
   dockSync();
@@ -3900,7 +3986,7 @@ function dockSync() {
   });
   txt($("dkBpm"), st.bpm);
   if ($("dkRate")) txt($("dkRate"), $("plRateVal").textContent);
-  if ($("dkSemi")) txt($("dkSemi"), $("plSemiVal").textContent);
+  if ($("dkSemi")) { const v = $("plSemiVal").textContent; txt($("dkSemi"), v === "0" ? "tonalità orig." : v + " semit."); }
 }
 $("dock").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
@@ -3908,6 +3994,7 @@ $("dock").addEventListener("click", e => {
   if (b.dataset.sel) document.querySelector(DOCK_SEL[b.dataset.sel])?.click();
   if (b.dataset.bpm) { const el = document.querySelector(".bpm-in"); el.value = String(Math.max(40, Math.min(240, st.bpm + +b.dataset.bpm))); el.dispatchEvent(new Event("change", { bubbles: true })); }
   if (b.dataset.goto) { const t = $(b.dataset.goto); t?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  if (b.dataset.sheet) plSheetOpen(true);
   setTimeout(dockSync, 0);
 });
 // tiene il lettore allineato ai pulsanti originali
@@ -4032,12 +4119,16 @@ async function libRender() {
       <div class="lib-acts"><button class="btn primary" data-act="ren-ok">Salva</button><button class="btn" data-act="ren-no">Annulla</button></div></div>`;
     let nSec = m.nSec; if (nSec == null) { try { nSec = JSON.parse(localStorage.getItem("pl:" + m.id) || "[]").length; } catch (e) { nSec = 0; } }
     const parts = [m.dur ? fmtT(m.dur) : "", m.keyName || "", nSec ? `${nSec} ${nSec === 1 ? "tratto" : "tratti"}` : "", m.size ? mb(m.size) : "", m.added ? "aggiunto " + date(m.added) : ""]
-      .filter(Boolean).map(p => `<span>${esc(p)}</span>`).join("") + (m.chords ? `<span class="lib-tag">accordi</span>` : "");
+      .filter(Boolean).map(p => `<span>${esc(p)}</span>`).join("");
+    const lk = "pl:" + m.id, has = k => { try { return !!localStorage.getItem(lk + k); } catch (e) { return false; } };
+    const chStr = (() => { try { return localStorage.getItem(lk + ":ch") || ""; } catch (e) { return ""; } })();
+    const tags = [m.chords || chStr ? "accordi" : "", chStr.includes('"fromSong"') ? "pennate" : "", has(":gp") ? "tab" : "", has(":vo") ? "voce" : "", m.base ? "base" : ""].filter(Boolean);
+    const tagHtml = tags.length ? `<span class="lib-tags">${tags.map(t => `<span class="lib-tag">${t}</span>`).join("")}</span>` : "";
     const del = LIB.confirmDel === m.id ? `<button class="btn danger" data-act="del-ok">Elimina?</button>`
       : `<button class="btn" data-act="del" aria-label="Elimina ${esc(m.name)}">🗑<span> Elimina</span></button>`;
     return `<div class="librow${on ? " on" : ""}" data-id="${esc(m.id)}">
       <button class="lib-open" data-act="open" aria-label="Apri ${esc(m.name)}"><span class="lib-ico" aria-hidden="true">${on ? "♪" : "▶"}</span>
-        <span class="lib-main"><b>${esc(m.name)}</b><span class="lib-meta">${parts}</span></span></button>
+        <span class="lib-main"><b>${esc(m.name)}</b><span class="lib-meta">${parts}</span>${tagHtml}</span></button>
       <div class="lib-acts"><button class="btn" data-act="ren" aria-label="Rinomina ${esc(m.name)}">✎<span> Rinomina</span></button>${del}</div></div>`;
   };
   $("libList").innerHTML = items.length ? items.map(row).join("")
@@ -4146,8 +4237,8 @@ function plLoad(file, meta) {
   try { PL.sections = JSON.parse(localStorage.getItem(PL.key) || "[]"); } catch (e) { PL.sections = []; }
   PL.buf = null; PL.chords = null; PL.chSel = -1; PL.chIdx = -2; PL.busy = false; PL.chHist = []; PL.chScope = "one";
   try { PL.chords = JSON.parse(localStorage.getItem(PL.key + ":ch") || "null"); } catch (e) { PL.chords = null; }
-  stmReset(); renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore();
-  file.arrayBuffer().then(buf => ac().decodeAudioData(buf)).then(buf => { PL.buf = buf; PL.peaks = plPeaks(buf, 2000); plDraw(); plChordsRender(); if (PL.gp) { tbRender(); tbSync(); } })
+  stmReset(); PL.chProgP = 0; renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore(); plModeApply(); plPrepRender(true);
+  file.arrayBuffer().then(buf => ac().decodeAudioData(buf)).then(buf => { PL.buf = buf; PL.peaks = plPeaks(buf, 2000); plDraw(); plChordsRender(); if (PL.gp) { tbRender(); tbSync(); } plAutoPrep(); })
     .catch(() => { PL.peaks = null; plDraw(); plChordsRender(); });
 }
 function plSavePos() { if (!PL.audio || PL.resumeAt) return; st.lastPos = Math.round(PL.audio.currentTime * 10) / 10; save(); }
@@ -4202,6 +4293,7 @@ function plUpdate() {
   $("plName").textContent = PL.name;
   $("plCur").textContent = fmtT(a.currentTime); $("plDur").textContent = fmtT(a.duration);
   if (typeof VO !== "undefined" && VO.notes && !VO.raf) voDraw();
+  plNowMini(); plPrepRender();
   { const ic = a.paused ? "play" : "pause"; if ($("plPlay").dataset.ic !== ic) { $("plPlay").dataset.ic = ic; $("plPlay").innerHTML = ic === "play" ? PLAY_IC : PAUSE_IC; } } $("plPlay").setAttribute("aria-label", a.paused ? "Riproduci" : "Pausa");
   const hasAB = PL.A != null && PL.B != null;
   $("plLoop").setAttribute("aria-pressed", String(PL.loop && hasAB)); $("plLoop").disabled = !hasAB;
@@ -4726,7 +4818,7 @@ function tbScrollAnim(v, target, ms) {
   };
   PL.tbScrollRaf = requestAnimationFrame(step);
 }
-function tbAutoUi() { const on = st.tbAuto !== false; $("tbAuto").setAttribute("aria-pressed", String(on)); $("tbAuto").textContent = on ? "Scorrimento automatico: sì" : "Scorrimento automatico: no"; }
+function tbAutoUi() { $("tbAuto").checked = st.tbAuto !== false; }
 function tbRestore() {
   PL.gp = null; let saved = null;
   try { saved = JSON.parse(localStorage.getItem(PL.key + ":gp") || "null"); } catch (e) {}
@@ -4760,7 +4852,7 @@ function tbAnchorAt(barIdx) {
   tbFixUi();
   tbSync().then(() => { $("tbStatus").textContent = `Battuta ${barIdx + 1} agganciata a ${fmtT2(now / 1000)}.`; });
 }
-$("tbAuto").addEventListener("click", () => { st.tbAuto = st.tbAuto === false; save(); tbAutoUi(); PL.tbManualUntil = 0; tbFollow(); });
+$("tbAuto").addEventListener("change", e => { st.tbAuto = e.target.checked; save(); PL.tbManualUntil = 0; tbFollow(); });
 // rotella, dito o barra di scorrimento sul riquadro: lo scorrimento automatico si sospende per 4 secondi
 ["wheel", "touchstart", "pointerdown"].forEach(ev => $("tbView").addEventListener(ev, e => { if (ev !== "pointerdown" || e.target === $("tbView")) PL.tbManualUntil = performance.now() + 4000; }, { passive: true }));
 $("tbFix").addEventListener("click", () => { if (!PL.gp) return; PL.gp.fixing = !PL.gp.fixing; tbFixUi(); });
@@ -4812,7 +4904,8 @@ function stCur(t = PL.audio?.currentTime || 0) {
 function stSuggest() {
   const c = PL.chords; if (!c) return [];
   const f = c.feel || {}, bpm = c.bpm || 100, out = [];
-  if (f.meter === 3) out.push("waltz2", "waltz", "six8");
+  if (f.meter === 2 && f.sub === 3) out.push("six8", "shuffle", "swingpop");
+  else if (f.meter === 3) out.push("waltz2", "waltz", "six8");
   else if (f.swing && bpm < 72) out.push("six8", "shuffle", "swingpop");     // lento e diviso in tre: è un 6/8 (o 12/8)
   else if (f.swing) out.push("shuffle", "swingpop", "six8");
   else if (f.sub === 4) out.push(bpm > 115 ? "funk" : "pop16", "gallop", "pop");
@@ -4948,7 +5041,7 @@ function stPreview() {
 async function stExtract() {
   const c = PL.chords, buf = PL.buf; if (!c || !buf || PL.stBusy) return;
   PL.stBusy = true; const key = PL.key;
-  $("stSugg").querySelector("[data-stx]").textContent = "Sto ascoltando il brano…";
+  { const bx = $("stSugg").querySelector("[data-stx]"); if (bx) bx.textContent = "Sto ascoltando il brano…"; } plPrepRender();
   await new Promise(r => setTimeout(r, 30));
   try {
     const SR = 22050, off = new OfflineAudioContext(1, Math.ceil(buf.duration * SR), SR), src = off.createBufferSource();
@@ -5008,7 +5101,7 @@ async function stExtract() {
     c.fromSong = { per, first, phase, bars, top, acc, topAcc, v: 2 };
     PL.stBusy = false; stSave({ base: "song" });
   } catch (err) { console.error(err); }
-  PL.stBusy = false; if (PL.key === key) stRender();
+  PL.stBusy = false; if (PL.key === key) { stRender(); plPrepRender(); }
 }
 PL.stTok = 0;
 function stSave(obj) { PL.chords.strum = obj; PL.chords._beats = null; PL.stCell = -2; plSaveChords(); stRender(); }
@@ -5336,6 +5429,14 @@ function voLoop() {
   voDraw();
 }
 // ---- disegno: note come barre, curva del cantante (facoltativa), la tua voce come linea
+// colore di una nota come sul manico: dal grado nella tonalità del brano (fuori scala: grigio)
+function voNoteCol(m) {
+  const k = PL.chords?.key, cs = getComputedStyle(document.body);
+  if (!k) return cs.getPropertyValue("--d1").trim() || "#e3a33b";
+  const iv = k.id ? semisOf(scaleById(k.id)) : k.minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
+  const d = iv.indexOf(mod12(m - shPc(k.pc)));
+  return d >= 0 ? (cs.getPropertyValue("--d" + (d + 1)).trim() || "#e3a33b") : (cs.getPropertyValue("--muted").trim() || "#888");
+}
 function voColors() {
   if (VO.col) return VO.col;
   const cs = getComputedStyle(document.body);
@@ -5371,11 +5472,13 @@ function voDraw() {
   VO.notes.forEach((n, k) => {
     if (n[0] + n[1] < t0 || n[0] > t0 + span) return;
     const r = VO.res.get(k), done = n[0] + n[1] < now - st.voLat / 1000 && r && r.n >= 4;
-    g.fillStyle = done ? (r.ok / r.n >= 0.5 ? "#2fb36d" : "#e5484d") : "#e3a33b";
-    g.globalAlpha = n[0] <= now && now < n[0] + n[1] ? 1 : 0.85;
+    const hit = done && r.ok / r.n >= 0.5;
+    g.fillStyle = voNoteCol(n[2] + semis);
+    g.globalAlpha = done ? (hit ? 1 : 0.28) : n[0] <= now && now < n[0] + n[1] ? 1 : 0.8;
     const x = X(n[0]), y = Y(n[2] + semis) - rowH * 0.42, ww = Math.max(3, X(n[0] + n[1]) - x), hh = rowH * 0.84;
     g.beginPath(); g.roundRect ? g.roundRect(x, y, ww, hh, Math.min(4, hh / 2)) : g.rect(x, y, ww, hh); g.fill();
-    if (k === VO.sel) { g.globalAlpha = 1; g.strokeStyle = C.fg; g.lineWidth = 2; g.stroke(); }
+    if (hit) { g.globalAlpha = 1; g.strokeStyle = C.fg; g.lineWidth = 2; g.stroke(); }
+    if (k === VO.sel) { g.globalAlpha = 1; g.strokeStyle = C.fg; g.lineWidth = 3; g.setLineDash([4, 3]); g.stroke(); g.setLineDash([]); }
     g.globalAlpha = 1;
   });
   // curva del cantante
@@ -5394,7 +5497,7 @@ function voDraw() {
   }
   // la tua voce
   if (VO.live.length) {
-    g.strokeStyle = "#5cc8ff"; g.lineWidth = 2.5; g.lineJoin = "round"; g.beginPath(); let pen = false, pt = 0;
+    g.strokeStyle = C.fg; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath(); let pen = false, pt = 0;
     VO.live.forEach(([t, m]) => { if (m == null || t - pt > 0.12) pen = false; if (m == null) return; const x = X(t), y = Y(m); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; pt = t; });
     g.stroke();
   }
@@ -5403,7 +5506,7 @@ function voDraw() {
   g.strokeStyle = C.fg; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xn, 0); g.lineTo(xn, h); g.stroke();
   if (VO.on && VO.cur != null && PL.audio?.paused) {
     let m = VO.cur; const k = voNoteAt(now); if (st.voOct && k >= 0) m -= 12 * Math.round((m - VO.notes[k][2] - semis) / 12);
-    if (m > lo - 1 && m < hi + 1) { g.fillStyle = "#5cc8ff"; g.beginPath(); g.arc(xn, Y(m), 6, 0, 7); g.fill(); }
+    if (m > lo - 1 && m < hi + 1) { g.fillStyle = C.fg; g.beginPath(); g.arc(xn, Y(m), 6, 0, 7); g.fill(); }
   }
 }
 // ---- correzione a mano
@@ -5464,6 +5567,27 @@ addEventListener("resize", () => voDraw());
 
 
 
+
+// ---- pannello Tracce: base senza voce, traccia voce, volume della voce originale
+(function trkBuild() {
+  $("trkRows").innerHTML = `<div class="trk-row"><span class="trk-name">Base senza voce</span><span class="trk-st" id="trkBaseSt"></span>
+      <label class="btn file-btn" id="voBaseBtn">Carica<input type="file" id="voBase" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label></div>
+    <div class="trk-row"><span class="trk-name">Voce</span><span class="trk-st" id="trkVocSt"></span>
+      <button class="btn" type="button" id="trkVocBtn">Carica</button></div>
+    <label class="field trk-mix" id="voMixF" hidden><span class="label">Voce originale</span><input type="range" id="voMix" min="0" max="100" step="5"><output id="voMixVal"></output></label>`;
+  $("trkVocBtn").addEventListener("click", () => $("voFile").click());
+})();
+$("voToTracks").addEventListener("click", () => { plSheetOpen(true); setTimeout(() => $("plTracks").scrollIntoView({ block: "start" }), 50); });
+
+// ---- microfono: nella pagina pubblicata su claude.ai non si può chiedere; lo dico subito, con la pagina giusta
+var MIC_OK = !!(navigator.mediaDevices?.getUserMedia && window.isSecureContext && !(document.featurePolicy && !document.featurePolicy.allowsFeature("microphone")));
+var MIC_NOTE = `<p class="mic-note">Qui il microfono non è disponibile. Per accordare, cantare e allenare la voce apri <a href="https://glovecchio29.github.io/guitarapp/" target="_blank" rel="noopener">la versione su GitHub</a>.</p>`;
+if (!MIC_OK) {
+  $("tuStart").insertAdjacentHTML("beforebegin", MIC_NOTE); $("tuStart").disabled = true;
+  $("voMic").insertAdjacentHTML("afterend", MIC_NOTE); $("voMic").disabled = true;
+}
+document.addEventListener("click", e => { if (!e.target.closest("[data-to-song]")) return; st.plMode = "voice"; save(); goTab(PL.audio ? "player" : "library"); window.scrollTo(0, 0); if (PL.audio) plModeApply(); });
+$("voToSing").addEventListener("click", () => { st.earEx = "sing"; st.lastPractice = "ear"; save(); goTab("ear"); window.scrollTo(0, 0); setTimeout(() => document.querySelector('[data-ex="sing"]')?.click(), 50); });
 // ---- Voce originale più bassa: con la base senza voce e la traccia voce del brano (separate da questo stesso file)
 // si suonano le due tracce al posto del brano completo, con la voce al volume scelto. Il brano resta il "metronomo":
 // le tracce lo seguono (avvio, pausa, salti, velocità) e un piccolo aggiustamento di velocità le tiene a tempo.
@@ -5521,13 +5645,98 @@ function stmSync(hard) {
 }
 function stmUi() {
   const both = !!(STM.b && STM.v);
-  $("voBaseBtn").firstChild.textContent = STM.b ? "Cambia base senza voce" : "Carica la base senza voce";
+  $("voBaseBtn").firstChild.textContent = STM.b ? "Cambia" : "Carica"; $("trkVocBtn").textContent = STM.v ? "Cambia" : "Carica";
+  $("trkBaseSt").textContent = STM.b ? "caricata" : "–"; $("trkVocSt").textContent = STM.v ? "caricata" : VO.notes ? "solo le note: ricaricala per sentirla" : "–";
   $("voMixF").hidden = !both;
   $("voMix").value = st.voMix; $("voMixVal").textContent = st.voMix === 100 ? "brano originale" : st.voMix + "%";
-  $("voBaseBtn").title = STM.b && !STM.v ? "Per abbassare la voce carica di nuovo anche la traccia voce" : "";
+  if (PL.libId) libUpdate(PL.libId, { base: !!STM.b });
 }
 $("voBase").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (!f || !PL.audio) return; stmStore("base", f); if (STM.v && st.voMix === 100) { st.voMix = 30; save(); stmUi(); } stmApply(); });
 $("voMix").addEventListener("input", e => { st.voMix = +e.target.value; save(); stmUi(); stmApply(); });
+
+
+
+// aiuto a richiesta: "?" apre i testi lunghi del riquadro
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-help]"); if (!b) return;
+  const sec = b.closest("section"); if (!sec) return;
+  const on = !sec.classList.contains("show-help"); sec.classList.toggle("show-help", on); b.setAttribute("aria-expanded", String(on));
+});
+// ===================== Player: modalità, pannello Controlli, "Prepara il brano" =====================
+// Il Player non è più una colonna di 9 riquadri: in alto le 4 cose da fare con il brano (una alla volta, a tutto spazio),
+// velocità/tonalità/tratti/tracce in un pannello che si apre dal lettore, e una scheda che prepara il brano da sola.
+if (!st.plMode) st.plMode = "chords";
+function plModeApply() {
+  const m = st.plMode;
+  document.querySelectorAll("#plModes [data-plm]").forEach(b => { const on = b.dataset.plm === m; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-selected", String(on)); });
+  document.querySelectorAll("#plMain [data-plm-of]").forEach(el => el.classList.toggle("plm-off", el.dataset.plmOf !== m));
+  $("plNowMini").hidden = m === "chords" || !PL.chords;
+  if (m === "tab" && PL.gp) setTimeout(() => tbRender(), 0);
+  if (m === "voice") setTimeout(() => voDraw(), 0);
+  if (m === "strum" && PL.chords) stRender();
+}
+$("plModes").addEventListener("click", e => { const b = e.target.closest("[data-plm]"); if (!b) return; st.plMode = b.dataset.plm; save(); plModeApply(); plPrepRender(true); });
+// adesso / poi in piccolo, nelle modalità diverse da Accordi
+function plNowMini() {
+  if ($("plNowMini").hidden || !PL.chords || !PL.audio) return;
+  const t = PL.audio.currentTime, i = plChordIdx(t), segs = PL.chords.segs, s = segs[i], nx = segs[i + 1];
+  const txt = (el, v) => { if (el.textContent !== v) el.textContent = v; };
+  txt($("nmCur"), s ? crName(s) : "–"); txt($("nmNext"), nx ? crName(nx) : "fine");
+  txt($("nmIn"), nx ? `tra ${Math.max(0, (nx.t - t) / (st.plRate / 100)).toFixed(1).replace(".", ",")} s` : "");
+}
+// pannello Controlli: velocità, tonalità, tratti da ripetere, tracce
+(function plSheetBuild() {
+  const sh = document.createElement("aside"); sh.className = "panel pl-sheet"; sh.id = "plSheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-label", "Controlli del brano"); sh.hidden = true;
+  sh.innerHTML = `<div class="ctx-head"><h2>Controlli del brano</h2><button class="btn" id="plSheetDone" type="button">Fatto</button></div>`;
+  const grid = document.querySelector("#plMain .pl-grid"), ab = document.querySelector('#plMain section[aria-label="Tratti da ripetere"]'), tr = document.querySelector('#plMain section[aria-label="Tracce"]');
+  [grid, ab, tr].forEach(el => el && sh.append(el));
+  const bg = document.createElement("div"); bg.className = "sheet-bg"; bg.id = "plSheetBg"; bg.hidden = true;
+  $("plMain").after(sh, bg);
+  $("plSheetDone").addEventListener("click", () => plSheetOpen(false));
+  bg.addEventListener("click", () => plSheetOpen(false));
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !sh.hidden) plSheetOpen(false); });
+})();
+function plSheetOpen(open) {
+  $("plSheet").hidden = !open; $("plSheetBg").hidden = !open; document.body.classList.toggle("sheet-open", !!open);
+  if (open) setTimeout(() => $("plSheet").querySelector("button, input")?.focus(), 30);
+}
+// "Prepara il brano": all'apertura gli accordi e poi le pennate si ricavano da soli; voce e tab si aggiungono da qui
+if (st.autoPrep == null) st.autoPrep = true;
+function plAutoPrep() { if (st.autoPrep && PL.buf && !PL.chords && !PL.busy) plDetect(); }
+function plPrepRender(force) {
+  const el = $("plPrep"); if (!el) return;
+  if (!PL.audio) { el.hidden = true; return; }
+  const ch = PL.chords, fs = ch?.fromSong, vn = typeof VO !== "undefined" ? VO.notes?.length : 0, gp = PL.gp;
+  const chS = ch ? "ok" : PL.busy ? "run" : PL.buf ? "todo" : "wait";
+  const stS = fs ? "ok" : PL.stBusy ? "run" : ch ? "todo" : "wait";
+  const voS = vn ? "ok" : VO?.busy ? "run" : "todo", tbS = gp ? "ok" : "opt";
+  const sig = [chS, stS, voS, tbS, Math.round((PL.chProgP || 0) * 20), st.plMode, ch?.segs.length, vn].join("|");
+  if (!force && el.dataset.sig === sig) return; el.dataset.sig = sig;
+  const all = chS === "ok" && stS === "ok";
+  const ico = s => s === "ok" ? "✓" : s === "run" ? "…" : s === "opt" ? "+" : "•";
+  const row = (id, s, name, okTxt, todo) => `<li class="pp-${s}" data-pp="${id}"><span class="pp-ico" aria-hidden="true">${ico(s)}</span><span class="pp-name">${name}</span><span class="pp-st">${s === "ok" ? okTxt : todo}</span></li>`;
+  el.hidden = false; el.classList.toggle("pp-done", all);
+  el.innerHTML = `<div class="pp-head"><h2>${all ? "Brano pronto" : "Preparo il brano"}</h2>${chS === "run" ? `<div class="progress pp-bar"><div class="bar" style="width:${Math.round((PL.chProgP || 0) * 100)}%"></div></div>` : ""}</div>
+    <ul class="pp-list">
+      ${row("chords", chS, "Accordi", `${ch ? ch.segs.filter(x => x.q !== "N").length : 0} cambi`, chS === "run" ? "li sto riconoscendo…" : chS === "todo" ? `<button class="btn" data-ppgo="detect">Riconosci</button>` : "aspetto il brano…")}
+      ${row("strum", stS, "Pennate", "ricavate dal brano", stS === "run" ? "le sto ricavando…" : stS === "todo" ? `<button class="btn" data-ppgo="strum">Ricava</button>` : "dopo gli accordi")}
+      ${row("voice", voS, "Voce del cantante", `${vn} note`, voS === "run" ? "la sto ascoltando…" : `<button class="btn" data-ppgo="voice">Carica la traccia voce</button>`)}
+      ${row("tab", tbS, "Tablatura", gp ? esc(gp.name || "file aperto") : "", `<button class="btn" data-ppgo="tab">Importa (facoltativo)</button>`)}
+    </ul>
+    ${voS !== "ok" && !all ? "" : ""}`;
+}
+$("plPrep").addEventListener("click", e => {
+  const go = e.target.closest("[data-ppgo]"), li = e.target.closest("[data-pp]");
+  if (go) {
+    const g = go.dataset.ppgo;
+    if (g === "detect") plDetect();
+    if (g === "strum") { st.plMode = "strum"; plModeApply(); stExtract(); }
+    if (g === "voice") { st.plMode = "voice"; save(); plModeApply(); $("voFile").click(); }
+    if (g === "tab") { st.plMode = "tab"; save(); plModeApply(); $("tbFile").click(); }
+    plPrepRender(true); return;
+  }
+  if (li && li.classList.contains("pp-ok")) { st.plMode = li.dataset.pp; save(); plModeApply(); plPrepRender(true); }
+});
 
 // ===================== Riconoscimento degli accordi del brano =====================
 // Tutto sul dispositivo, nessuna libreria esterna:
@@ -5910,7 +6119,8 @@ $("plLabCycle").addEventListener("click", () => {
 try { $("plOpts").open = localStorage.getItem("plOptsOpen") === "1"; } catch (e) {}
 $("plOpts").addEventListener("toggle", () => { try { localStorage.setItem("plOptsOpen", $("plOpts").open ? "1" : "0"); } catch (e) {} });
 $("plOrientSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; st.plBoxOrient = b.dataset.v; save(); plBoardRender(); });
-$("plViewSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; st.plView = b.dataset.v; save(); plBoardRender(); });
+$("plViewSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; st.plView = b.dataset.v; st.plViewSet = true; save(); plBoardRender(); });
+if (!st.plViewSet && matchMedia("(max-width: 599px)").matches) st.plView = "box";        // sul telefono il manico intero è troppo alto
 // conto alla rovescia sui prossimi box (tiene conto della velocità di riproduzione)
 function plCountdown() {
   if (!PL.audio) return;
@@ -5931,13 +6141,13 @@ function plChordsRender() {
   if (!PL.chords) {
     $("plPlayPanel").hidden = true; $("plStrum").hidden = true;
     tools.innerHTML = `<button class="btn primary" id="plDetect"${PL.buf ? "" : " disabled"}>Riconosci gli accordi</button><button class="btn" id="plImport" aria-expanded="${!!PL.sheetOpen}">Importa accordi</button>`;
-    body.innerHTML = sheetPanelHtml() + `<p class="hint">${PL.buf ? "L'analisi avviene sul dispositivo e richiede qualche secondo. Funziona meglio sugli accordi maggiori e minori; quelli sbagliati si correggono a mano. Se hai già gli accordi del brano (da un sito o da un libro), usa \"Importa accordi\": l'app li mette a tempo con la canzone." : "Preparo il brano…"}</p>`;
+    body.innerHTML = sheetPanelHtml() + `<p class="hint">${PL.buf ? "Gli accordi si riconoscono sul dispositivo in qualche secondo." : "Preparo il brano…"}</p><p class="hint help">Funziona meglio sugli accordi maggiori e minori; quelli sbagliati si correggono a mano. Se hai già gli accordi del brano (da un sito o da un libro), usa \"Importa accordi\": l'app li mette a tempo con la canzone.</p>`;
     sheetStatus();
     return;
   }
   const C = PL.chords, k = plChKey(), keyName = `${noteName(k.r)} ${keyShort(k.id)}`;
   const nChords = C.segs.filter(s => s.q !== "N").length;
-  tools.innerHTML = `<button class="btn primary" id="plToProg">Usa nella progressione</button><button class="btn" id="plImport" aria-expanded="${!!PL.sheetOpen}">Importa accordi</button><button class="btn" id="plRedo">Rifai l'analisi</button>`;
+  tools.innerHTML = `<button class="btn" id="plToProg">Usa nella progressione</button><details class="more"><summary class="btn icon" aria-label="Altre azioni sugli accordi">⋯</summary><div class="more-menu"><button class="btn" id="plImport" aria-expanded="${!!PL.sheetOpen}">Importa accordi da un testo</button><button class="btn" id="plRedo">Rifai l'analisi</button></div></details>`;
   const chips = C.segs.map((s, i) => `<button class="cchip${s.q === "N" ? " nc" : ""}${i === PL.chSel ? " sel" : ""}" data-i="${i}" style="--h:${s.pc * 30}"><b>${crName(s)}</b><span>${fmtT(s.t)}</span></button>`).join("");
   let edit = "";
   if (PL.chSel >= 0 && C.segs[PL.chSel]) {
@@ -5964,12 +6174,15 @@ function plChordsRender() {
       <p class="hint">− e + spostano di mezzo battito (${plStep().toFixed(2).replace(".", ",")} s). "Qui" usa il punto in cui sei nel brano: ascolta, metti in pausa sul cambio e premilo.</p>`}
     </div>`;
   }
-  body.innerHTML = sheetPanelHtml() + `<p class="hint">Tonalità stimata: <b>${keyName}</b> · circa <b>${C.bpm} BPM</b> · ${nChords} cambi di accordo${C.sheet ? " · accordi dal testo importato" : ""}${C.edited ? " · corretto a mano" : ""}</p>
+  const mtr = C.feel?.meter === 2 && C.feel?.sub === 3 ? "6" : C.feel?.meter === 3 ? "3" : "4";
+  body.innerHTML = sheetPanelHtml() + `<p class="hint">Tonalità stimata: <b>${keyName}</b> · ${nChords} cambi di accordo${C.sheet ? " · accordi dal testo importato" : ""}${C.edited ? " · corretto a mano" : ""}</p>
+    <div class="tempo-row"><span class="label">Tempo</span><b>${C.bpm} BPM</b><button class="btn" data-ed="bpm-half" title="Metà">÷2</button><button class="btn" data-ed="bpm-dbl" title="Doppio">×2</button><button class="btn" data-ed="tap">${PL.taps?.length ? `Batti ancora (${PL.taps.length})` : "Batti il tempo"}</button>
+      <label class="tempo-meter"><span class="label">Metro</span><select id="plMeter"><option value="4"${mtr === "4" ? " selected" : ""}>4/4</option><option value="3"${mtr === "3" ? " selected" : ""}>3/4</option><option value="6"${mtr === "6" ? " selected" : ""}>6/8</option></select></label></div>
     <div class="nowchord"><div class="nc-cur"><span class="label">Adesso</span><b id="ncCur">–</b><small id="ncMode"></small></div>
       <div class="nc-next"><span class="label">Poi</span><b id="ncNext">–</b><small id="ncIn"></small></div></div>
     <div class="cstrip" id="plStrip">${chips}</div>${edit}
     <div class="che-tools">${PL.chHist?.length && PL.chSel < 0 ? `<button class="btn" data-ed="undo">${UNDO_IC} Annulla l'ultima modifica</button>` : ""}<button class="btn" data-ed="short">Togli gli accordi più brevi di 1 s</button></div>
-    <p class="hint">Tocca un accordo per andare a quel punto del brano e correggerlo: cambiarlo (anche tutti quelli uguali), eliminarlo o spostarne inizio e fine. "Usa nella progressione" usa il tratto A–B se l'hai scelto, altrimenti i primi accordi del brano.</p>`;
+    <p class="hint help">Tocca un accordo per andare a quel punto del brano e correggerlo: cambiarlo (anche tutti quelli uguali), eliminarlo o spostarne inizio e fine. "Usa nella progressione" usa il tratto A–B se l'hai scelto, altrimenti i primi accordi del brano.</p>`;
   PL.chIdx = -2; plChordsLive(); stRender(); sheetStatus();
 }
 function plChordsLive() {
@@ -6001,15 +6214,17 @@ async function plDetect() {
   $("plChBody").innerHTML = `<div class="progress"><div class="bar" id="plProg"></div></div><p class="hint" id="plProgTxt">Analisi del brano…</p>`;
   const t0 = performance.now(), key = PL.key, buf = PL.buf;
   try {
-    const res = await crAnalyze(buf, p => { const b = $("plProg"); if (b && PL.key === key) b.style.width = Math.round(p * 100) + "%"; });
+    const res = await crAnalyze(buf, p => { if (PL.key !== key) return; PL.chProgP = p; const b = $("plProg"); if (b) b.style.width = Math.round(p * 100) + "%"; plPrepRender(); });
     if (PL.key !== key) return;            // nel frattempo è stato aperto un altro brano: questo risultato non gli appartiene
     PL.chords = res; PL.chords.ms = Math.round(performance.now() - t0);
     plSaveChords();
   } catch (err) { if (PL.key !== key) return; PL.chords = null; $("plChBody").innerHTML = `<p class="hint">Non sono riuscito ad analizzare il brano.</p>`; }
-  PL.busy = false; plChordsRender(); plDraw();
+  PL.busy = false; plChordsRender(); plDraw(); plPrepRender();
+  if (PL.key === key && PL.chords && !PL.chords.fromSong) stExtract();     // poi le pennate, da sole
 }
 $("plChTools").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
+  b.closest("details.more")?.removeAttribute("open");
   if (b.id === "plDetect") plDetect();
   if (b.id === "plImport") { PL.sheetOpen = !PL.sheetOpen; plChordsRender(); if (PL.sheetOpen) setTimeout(() => $("shText")?.focus(), 30); }
   if (b.id === "plRedo") { PL.chords = null; plDetect(); }
@@ -6021,6 +6236,25 @@ $("plChTools").addEventListener("click", e => {
     st.key = rootIdxOfPc(shPc(C.key.pc)); st.keyScale = plChKey().id;
     goTab("prog"); window.scrollTo(0, 0);
   }
+});
+
+// ---- tempo e metro: la stima si corregge (metà, doppio, battendo il tempo) e le pennate seguono
+function plSetBpm(bpm) {
+  const C = PL.chords; if (!C || !(bpm > 20)) return;
+  const old = C.bpm || bpm, r = bpm / old, b = C.beats;
+  if (b?.length > 4) {
+    if (Math.abs(r - 0.5) < 0.08) C.beats = b.filter((_, i) => i % 2 === 0);
+    else if (Math.abs(r - 2) < 0.15) { const nb = []; b.forEach((t, i) => { nb.push(t); if (b[i + 1] != null) nb.push((t + b[i + 1]) / 2); }); C.beats = nb; }
+    else { const per = 60 / bpm, dur = PL.audio?.duration || b[b.length - 1] + 1, nb = []; for (let t = b[0]; t < dur; t += per) nb.push(Math.round(t * 1000) / 1000); C.beats = nb; }
+  }
+  C.bpm = Math.round(bpm); C.tempoEdited = true; C._beats = null; PL.stCell = -2;
+  plSaveChords(); plChordsRender();
+}
+document.addEventListener("change", e => {
+  if (e.target.id !== "plMeter" || !PL.chords) return;
+  const v = e.target.value, f = PL.chords.feel = { ...(PL.chords.feel || {}) };
+  if (v === "6") { f.meter = 2; f.sub = 3; f.swing = true; } else { f.meter = +v; if (f.sub === 3) f.sub = 2; f.swing = false; }
+  PL.chords._beats = null; plSaveChords(); plChordsRender();
 });
 // ---- modifica degli accordi: uno solo o tutti quelli uguali, durata, eliminazione, annulla
 function fmtT2(t) { t = Math.max(0, t); const m = Math.floor(t / 60), sec = t - m * 60; return `${m}:${sec < 10 ? "0" : ""}${sec.toFixed(1).replace(".", ",")}`; }
@@ -6047,6 +6281,14 @@ $("plChBody").addEventListener("click", e => {
   if (c) { const i = +c.dataset.i; PL.chSel = PL.chSel === i ? -1 : i; PL.audio.currentTime = PL.chords.segs[i].t + 0.02; plChordsRender(); plUpdate(); return; }
   const b = e.target.closest("[data-ed]"); if (!b || !PL.chords) return;
   const a = b.dataset.ed, segs = PL.chords.segs, i = PL.chSel, s = segs[i], step = plStep(), now = PL.audio?.currentTime ?? 0;
+  if (a === "bpm-half") { plSetBpm(PL.chords.bpm / 2); return; }
+  if (a === "bpm-dbl") { plSetBpm(PL.chords.bpm * 2); return; }
+  if (a === "tap") {                                     // batti il tempo: dopo 4 colpi uso la mediana degli intervalli
+    const t = performance.now(); PL.taps = (PL.taps || []).filter(x => t - x < 3000); PL.taps.push(t);
+    if (PL.taps.length >= 5) { const d = PL.taps.slice(1).map((x, k) => x - PL.taps[k]).sort((p, q) => p - q); PL.taps = []; plSetBpm(60000 / d[d.length >> 1]); }
+    else b.textContent = `Batti ancora (${PL.taps.length})`;
+    return;
+  }
   if (a === "close") { PL.chSel = -1; plChordsRender(); return; }
   if (a === "scope-one" || a === "scope-all") { PL.chScope = a === "scope-all" ? "all" : "one"; plChordsRender(); return; }
   if (a === "undo") { const h = PL.chHist?.pop(); if (!h) return; PL.chords.segs = JSON.parse(h); PL.chSel = Math.min(PL.chSel, PL.chords.segs.length - 1); PL.chords.edited = true; PL.chIdx = -2; plSaveChords(); plChordsRender(); plDraw(); return; }
