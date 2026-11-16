@@ -1041,6 +1041,8 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
             <label class="check"><input type="checkbox" id="voGuide"> Suona la melodia</label>
             <label class="check"><input type="checkbox" id="voCurve"> Curva del cantante</label>
             <label class="field vo-lat"><span class="label">Ritardo del microfono</span><input type="range" id="voLat" min="0" max="400" step="10"><output id="voLatVal"></output></label>
+            <label class="btn file-btn" id="voBaseBtn">Carica la base senza voce<input type="file" id="voBase" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
+            <label class="field vo-lat" id="voMixF" hidden><span class="label">Voce originale</span><input type="range" id="voMix" min="0" max="100" step="5"><output id="voMixVal"></output></label>
             <button class="btn" id="voReset">Azzera il punteggio</button>
             <button class="btn icon" id="voClose" aria-label="Togli le note della voce">✕</button>
           </div>
@@ -4005,6 +4007,7 @@ async function libDelete(id) {
   try { await libReq("audio", "readwrite", s => s.delete(id)); await libReq("meta", "readwrite", s => s.delete(id)); } catch (e) {}
   LIB.items = LIB.items.filter(x => x.id !== id);
   try { localStorage.removeItem("pl:" + id); localStorage.removeItem("pl:" + id + ":ch"); } catch (e) {}
+  try { await libReq("audio", "readwrite", s => s.delete(id + ":voc")); await libReq("audio", "readwrite", s => s.delete(id + ":base")); } catch (e) {}
   if (st.lastSong === id) { st.lastSong = null; st.lastPos = 0; save(); }
   if (PL.libId === id && PL.audio) {          // era il brano aperto: lo chiudo
     plPause(); PL.audio.removeAttribute("src"); PL.audio.load(); PL.audio = null;
@@ -4131,9 +4134,10 @@ function plLoad(file, meta) {
     PL.audio.addEventListener("ended", () => plUpdate());
     PL.audio.addEventListener("timeupdate", () => { const t = PL.audio.currentTime; if (Math.abs(t - (st.lastPos || 0)) > 2) plSavePos(); });
     PL.audio.addEventListener("seeked", () => plSavePos());
-    PL.audio.addEventListener("pause", () => { plUpdate(); tbPlayState(false); if (!VO.on) { cancelAnimationFrame(VO.raf); VO.raf = 0; voDraw(); } });
-    PL.audio.addEventListener("play", () => { tbPlayState(true); if (VO.notes && !VO.on) { cancelAnimationFrame(VO.raf); VO.raf = requestAnimationFrame(voLoop); } });
-    PL.audio.addEventListener("seeked", () => tbPos());
+    PL.audio.addEventListener("pause", () => { plUpdate(); tbPlayState(false); stmSync(true); if (!VO.on) { cancelAnimationFrame(VO.raf); VO.raf = 0; voDraw(); } });
+    PL.audio.addEventListener("play", () => { tbPlayState(true); stmApply(); if (VO.notes && !VO.on) { cancelAnimationFrame(VO.raf); VO.raf = requestAnimationFrame(voLoop); } });
+    PL.audio.addEventListener("seeked", () => { tbPos(); stmSync(true); });
+    PL.audio.addEventListener("ratechange", () => stmSync(true));
   }
   const a = PL.audio;
   a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true;
@@ -4142,7 +4146,7 @@ function plLoad(file, meta) {
   try { PL.sections = JSON.parse(localStorage.getItem(PL.key) || "[]"); } catch (e) { PL.sections = []; }
   PL.buf = null; PL.chords = null; PL.chSel = -1; PL.chIdx = -2; PL.busy = false; PL.chHist = []; PL.chScope = "one";
   try { PL.chords = JSON.parse(localStorage.getItem(PL.key + ":ch") || "null"); } catch (e) { PL.chords = null; }
-  renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore();
+  stmReset(); renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore();
   file.arrayBuffer().then(buf => ac().decodeAudioData(buf)).then(buf => { PL.buf = buf; PL.peaks = plPeaks(buf, 2000); plDraw(); plChordsRender(); if (PL.gp) { tbRender(); tbSync(); } })
     .catch(() => { PL.peaks = null; plDraw(); plChordsRender(); });
 }
@@ -4296,7 +4300,7 @@ document.querySelector('[aria-label="Velocità"]').addEventListener("click", e =
     if (drag.select && drag.moved && PL.B - PL.A > 0.3) {
       PL.loop = true; PL.audio.currentTime = PL.A; plRenderSections(); plOfferUndo(drag.prev);
     } else if (drag.select && drag.moved) { Object.assign(PL, drag.prev); }       // tratto troppo corto: lascio tutto com'era
-    else if (!drag.cancel) PL.audio.currentTime = tAt(e);
+    else if (!drag.cancel) { const t = tAt(e); if (Number.isFinite(t)) PL.audio.currentTime = t; }   // durata non ancora nota: niente salto
     clearDrag(); plUpdate();
   });
   cv.addEventListener("pointercancel", () => { if (drag?.select && drag.moved) Object.assign(PL, drag.prev); clearDrag(); plUpdate(); });
@@ -5444,7 +5448,7 @@ $("voFile").addEventListener("change", async e => {
     const t0 = performance.now(), r = await voAnalyze(abuf, say);
     if (PL.key !== key) return;
     VO.notes = r.notes; VO.curve = r.curve; VO.hop = r.hop; VO.t0 = r.t0; VO.src = f.name; VO.res = new Map(); VO.sel = -1; VO.undo = [];
-    VO.busy = false; voSave(); voUi();
+    VO.busy = false; voSave(); stmStore("voc", f); voUi();
     $("voStatus").textContent += ` · analisi in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
   } catch (err) { console.error(err); say("Non riesco a leggere questo file audio."); }
   VO.busy = false;
@@ -5455,9 +5459,75 @@ $("voGuide").addEventListener("change", e => { st.voGuide = e.target.checked; sa
 $("voCurve").addEventListener("change", e => { st.voCurve = e.target.checked; save(); voDraw(); });
 $("voLat").addEventListener("input", e => { st.voLat = +e.target.value; save(); $("voLatVal").textContent = st.voLat + " ms"; });
 $("voReset").addEventListener("click", () => { VO.res = new Map(); VO.live = []; voScoreUi(); voDraw(); });
-$("voClose").addEventListener("click", () => { voMicStop(); VO.notes = null; VO.curve = null; try { localStorage.removeItem(PL.key + ":vo"); } catch (e) {} voUi(); });
+$("voClose").addEventListener("click", () => { stmForget(); voMicStop(); VO.notes = null; VO.curve = null; try { localStorage.removeItem(PL.key + ":vo"); } catch (e) {} voUi(); });
 addEventListener("resize", () => voDraw());
 
+
+
+// ---- Voce originale più bassa: con la base senza voce e la traccia voce del brano (separate da questo stesso file)
+// si suonano le due tracce al posto del brano completo, con la voce al volume scelto. Il brano resta il "metronomo":
+// le tracce lo seguono (avvio, pausa, salti, velocità) e un piccolo aggiustamento di velocità le tiene a tempo.
+// Passano per lo stesso bus del brano, quindi seguono anche il cambio di tonalità.
+var STM = { b: null, v: null, timer: 0 };
+if (st.voMix == null) st.voMix = 100;
+function stmEl(blob) { const el = new Audio(URL.createObjectURL(blob)); el.preload = "auto"; el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = true; return el; }
+function stmDrop(x) { if (!x) return; x.el.pause(); try { x.src?.disconnect(); } catch (e) {} URL.revokeObjectURL(x.el.src); }
+function stmReset() {
+  clearInterval(STM.timer); STM.timer = 0;
+  stmDrop(STM.b); stmDrop(STM.v); STM.b = STM.v = null;
+  if (PL.graph?.mixG) PL.graph.mixG.gain.value = 1;
+}
+function stmSet(kind, blob) { stmDrop(STM[kind]); STM[kind] = { el: stmEl(blob), src: null, g: null }; }
+async function stmRestore() {
+  const id = PL.libId, key = PL.key; if (!id) return;
+  for (const kind of ["voc", "base"]) {
+    try { const b = await libReq("audio", "readonly", s => s.get(id + ":" + kind)); if (b && PL.key === key) stmSet(kind === "voc" ? "v" : "b", b); } catch (e) {}
+  }
+  if (PL.key === key) stmUi();
+}
+function stmStore(kind, file) {
+  if (PL.libId) libReq("audio", "readwrite", s => s.put(file, PL.libId + ":" + kind)).catch(() => {});
+  stmSet(kind === "voc" ? "v" : "b", file); stmUi();
+}
+function stmForget() {
+  if (PL.libId) ["voc", "base"].forEach(k => libReq("audio", "readwrite", s => s.delete(PL.libId + ":" + k)).catch(() => {}));
+  stmReset(); stmUi();
+}
+const stmOn = () => !!(STM.b && STM.v && st.voMix < 100);
+// collega le tracce al bus solo quando servono (il grafo audio nasce da un gesto: tocco sul cursore o su "play")
+function stmWire() {
+  const g = plGraph(), c = ac();
+  ["b", "v"].forEach(k => { const x = STM[k]; if (x && !x.src) { x.src = c.createMediaElementSource(x.el); x.g = c.createGain(); x.src.connect(x.g).connect(g.bus); } });
+}
+function stmApply() {
+  const on = stmOn();
+  if (on) stmWire();
+  const g = PL.graph; if (g?.mixG) g.mixG.gain.value = on ? 0 : 1;
+  if (STM.b?.g) STM.b.g.gain.value = on ? 1 : 0;
+  if (STM.v?.g) STM.v.g.gain.value = on ? (st.voMix / 100) ** 1.5 : 0;     // curva morbida: a metà la voce si sente già molto meno
+  stmSync(true);
+}
+function stmSync(hard) {
+  const a = PL.audio, on = stmOn() && !!STM.b?.src;
+  ["b", "v"].forEach(k => {
+    const x = STM[k]; if (!x) return; const el = x.el;
+    if (!on || !a || a.paused) { if (!el.paused) el.pause(); if (a && hard && on) el.currentTime = a.currentTime; return; }
+    const d = el.currentTime - a.currentTime, r = a.playbackRate;
+    if (hard || Math.abs(d) > 0.25) { el.currentTime = a.currentTime; el.playbackRate = r; }
+    else el.playbackRate = r * (1 - Math.max(-0.03, Math.min(0.03, d * 0.6)));   // recupero dolce, senza salti udibili
+    if (el.paused) el.play().catch(() => {});
+  });
+  clearInterval(STM.timer); STM.timer = on && a && !a.paused ? setInterval(() => stmSync(false), 200) : 0;
+}
+function stmUi() {
+  const both = !!(STM.b && STM.v);
+  $("voBaseBtn").firstChild.textContent = STM.b ? "Cambia base senza voce" : "Carica la base senza voce";
+  $("voMixF").hidden = !both;
+  $("voMix").value = st.voMix; $("voMixVal").textContent = st.voMix === 100 ? "brano originale" : st.voMix + "%";
+  $("voBaseBtn").title = STM.b && !STM.v ? "Per abbassare la voce carica di nuovo anche la traccia voce" : "";
+}
+$("voBase").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (!f || !PL.audio) return; stmStore("base", f); if (STM.v && st.voMix === 100) { st.voMix = 30; save(); stmUi(); } stmApply(); });
+$("voMix").addEventListener("input", e => { st.voMix = +e.target.value; save(); stmUi(); stmApply(); });
 
 // ===================== Riconoscimento degli accordi del brano =====================
 // Tutto sul dispositivo, nessuna libreria esterna:
@@ -5485,9 +5555,9 @@ let SSmod = null;
 function plGraph() {
   const c = ac();
   if (!PL.graph || PL.graph.el !== PL.audio) {
-    const src = c.createMediaElementSource(PL.audio);
-    src.connect(c.destination);
-    PL.graph = { el: PL.audio, src, node: null, via: "direct", lat: 0 };
+    const src = c.createMediaElementSource(PL.audio), mixG = c.createGain(), bus = c.createGain();
+    src.connect(mixG).connect(bus); bus.connect(c.destination);           // le tracce separate (base, voce) entrano nel bus:
+    PL.graph = { el: PL.audio, src, mixG, bus, node: null, via: "direct", lat: 0 };   // anche loro seguono il cambio di tonalità
   }
   return PL.graph;
 }
@@ -5498,7 +5568,7 @@ async function plApplyPitch() {
   try {
     const g = plGraph(), c = ac();
     if (!semis) {
-      if (g.via !== "direct") { g.src.disconnect(); g.src.connect(c.destination); g.via = "direct"; }
+      if (g.via !== "direct") { g.bus.disconnect(); g.bus.connect(c.destination); g.via = "direct"; }
     } else {
       if (!g.node) {
         $("plSemiHint").textContent = "Preparo il cambio di tonalità…";
@@ -5509,7 +5579,7 @@ async function plApplyPitch() {
         try { g.lat = await g.node.latency(); } catch (e) { g.lat = 0; }
       }
       g.node.schedule({ semitones: semis, active: true });
-      if (g.via !== "stretch") { g.src.disconnect(); g.src.connect(g.node); g.via = "stretch"; }
+      if (g.via !== "stretch") { g.bus.disconnect(); g.bus.connect(g.node); g.via = "stretch"; }
     }
     PL.pitchErr = false;
   } catch (e) {
