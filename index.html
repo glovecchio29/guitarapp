@@ -946,6 +946,49 @@ details.more > summary::-webkit-details-marker { display: none; }
 .tempo-meter select { width: auto; padding: 4px 8px; }
 .mic-note { margin: 8px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
 .mic-note a { color: var(--fg); font-weight: 600; }
+.rl-sets { margin-bottom: 4px; }
+.rl-wrap { --cw: 40px; --lab: 190px; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 6px; }
+.rl-grid { display: grid; gap: 6px; width: max-content; }
+.rl-row { display: grid; grid-template-columns: var(--lab) repeat(var(--cols), var(--cw)) auto; align-items: center; }
+.rl-lab { position: sticky; left: 0; z-index: 2; display: flex; align-items: center; gap: 8px; text-align: left; background: var(--surface); border: 0; color: var(--fg); font: inherit; padding: 4px 10px 4px 0; cursor: pointer; height: 100%; }
+.rl-lab:hover .rl-name { text-decoration: underline; }
+.rl-rn { font: 700 13px var(--font-body); min-width: 30px; color: var(--muted); }
+.rl-name { display: grid; font-weight: 600; font-size: 14px; line-height: 1.2; }
+.rl-name small { font-weight: 500; font-size: 12px; color: var(--muted); }
+.rl-win { position: relative; z-index: 1; display: grid; justify-items: center; align-content: center; height: 44px; margin: 0 2px; border: 1px solid var(--line); border-top: 3px solid var(--dc, var(--line)); border-radius: 8px; background: var(--surface-2); }
+.rl-win b { font-size: 13.5px; line-height: 1.1; } .rl-win small { font-size: 11px; color: var(--muted); }
+.rl-win.one { border-width: 2px; border-top-width: 3px; border-color: var(--fg); border-top-color: var(--dc); }
+.rl-gap { height: 44px; position: relative; }
+.rl-gap.line::before, .rl-win + .rl-gap.line::before { content: ""; position: absolute; left: -2px; right: -2px; top: 50%; border-top: 1px solid var(--line); }
+.rl-end { padding-left: 8px; }
+.rl-go { padding: 4px 10px; min-height: 0; font-size: 12.5px; white-space: nowrap; }
+.rl-slider { margin-top: 8px; position: sticky; bottom: 0; }
+.rl-ctrl { cursor: default; gap: 6px; } .rl-ctrl b { font-size: 18px; min-width: 52px; text-align: center; }
+.rl-ctrl .btn { width: 34px; min-width: 34px; height: 34px; padding: 0; }
+.rl-strip { grid-column: 2 / -1; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); touch-action: pan-y; cursor: grab; user-select: none; }
+.rl-strip:active { cursor: grabbing; }
+.rl-track { display: flex; margin-left: calc(-1 * var(--cw)); will-change: transform; }
+.rl-note { flex: none; width: var(--cw); height: 40px; display: grid; place-items: center; font-size: 13px; font-weight: 600; border-right: 1px solid var(--line); color: var(--muted); }
+.rl-note.root { color: var(--bg); background: var(--fg); }
+.rl-sets .sm { display: none; }
+.rl-wrap.narrow { overflow: visible; }
+.rl-wrap.narrow .rl-grid { width: 100%; gap: 10px; }
+.rl-n { display: block; }
+.rl-n .rl-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.rl-n .rl-lab { position: static; padding: 0; height: auto; background: none; }
+.rl-n .rl-rn { display: inline; min-width: 0; }
+.rl-n .rl-name { display: inline; } .rl-n .rl-name small { margin-left: 6px; }
+.rl-n .rl-cells { display: grid; grid-template-columns: repeat(12, 1fr); position: relative; }
+.rl-n .rl-cells::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--line); }
+.rl-n .rl-win { margin: 0 1px; height: 40px; border-radius: 6px; }
+.rl-n .rl-win b { font-size: 10.5px; letter-spacing: -.2px; } .rl-n .rl-win small { font-size: 9.5px; }
+.rl-n .rl-gap { height: 40px; } .rl-n .rl-gap.line::before { display: none; }
+.rl-wrap.narrow .rl-slider { display: block; position: static; }
+.rl-wrap.narrow .rl-ctrl { position: static; justify-content: center; margin-bottom: 6px; height: auto; background: none; }
+.rl-wrap.narrow .rl-strip { --cwN: calc(100% / 12); }
+.rl-wrap.narrow .rl-track { margin-left: calc(-100% / 12); width: calc(100% * 14 / 12); }
+.rl-wrap.narrow .rl-note { width: calc(100% / 14); font-size: 10.5px; height: 36px; }
+@media (max-width: 600px) { .rl-sets .lg { display: none; } .rl-sets .sm { display: inline; } .rl-sets { flex-wrap: nowrap; } .rl-sets button { flex: 1; padding: 8px 2px; font-size: 13px; } .rl-go { font-size: 11.5px; padding: 3px 8px; } }
 </style>
 
 <div class="app">
@@ -1268,6 +1311,17 @@ details.more > summary::-webkit-details-marker { display: none; }
       <aside class="panel chside" id="chSide" aria-label="Scegli un accordo"></aside>
     </div>
 
+    <!-- ===== REGOLO ===== -->
+    <section class="panel only-ruler" aria-label="Regolo" id="rlPanel">
+      <div class="card-head"><h2>Regolo</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button></div>
+      <div class="seg seg-wrap rl-sets" id="rlSets" role="tablist" aria-label="Cosa leggere sul regolo">
+        <button data-v="maj"><span class="lg">Modi della maggiore</span><span class="sm">Maggiore</span></button><button data-v="harm"><span class="lg">Modi della minore armonica</span><span class="sm">Min. armonica</span></button><button data-v="other"><span class="lg">Altre scale</span><span class="sm">Scale</span></button><button data-v="chords"><span class="lg">Accordi e arpeggi</span><span class="sm">Accordi</span></button>
+      </div>
+      <p class="hint">Trascina la striscia delle note (o usa ‹ ›) per cambiare tonica. Tocca il nome di una riga per sentirla.</p>
+      <p class="hint help">È il regolo del libro: le finestre di ogni riga stanno sui semitoni del modo, della scala o dell'accordo; sotto scorre la striscia con le 12 note. Quando metti una nota sotto l'1, in ogni finestra leggi le note e sotto il grado. Nei modi della maggiore (e della minore armonica) le righe sono sfalsate: ogni modo comincia sul suo grado della scala madre, quindi le note in colonna sono le stesse. Il numero romano è il grado, accanto il tipo di accordo che nasce lì. "Sul manico" apre quel modo nella scheda Manico.</p>
+      <div class="rl-wrap" id="rlWrap"></div>
+    </section>
+
     <!-- ===== TONALITÀ ===== -->
     <section class="panel only-keys" aria-label="Circolo delle quinte">
       <div class="keys-wrap">
@@ -1565,12 +1619,12 @@ const DEFAULTS = { tab:"scale", root: 9, scale: "pmin", tuning: "std", frets: 22
 const KEY = "scale-sul-manico-v1";
 let st = { ...DEFAULTS };
 try { st = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch (e) {}
-const HASH_TAB = { "#accordatore": "tuner", "#orecchio": "ear", "#libreria": "library", "#player": "player", "#scale": "scale", "#progressione": "prog", "#box": "box", "#accordi": "chords", "#tonalita": "keys" };
-const TAB_HASH = { tuner: "#accordatore", ear: "#orecchio", library: "#libreria", player: "#player", scale: "#scale", prog: "#progressione", box: "#box", chords: "#accordi", keys: "#tonalita" };
+const HASH_TAB = { "#regolo": "ruler", "#accordatore": "tuner", "#orecchio": "ear", "#libreria": "library", "#player": "player", "#scale": "scale", "#progressione": "prog", "#box": "box", "#accordi": "chords", "#tonalita": "keys" };
+const TAB_HASH = { ruler: "#regolo", tuner: "#accordatore", ear: "#orecchio", library: "#libreria", player: "#player", scale: "#scale", prog: "#progressione", box: "#box", chords: "#accordi", keys: "#tonalita" };
 // in quali schede si vede ogni gruppo di elementi
 const VIS = {
   "only-ear": ["ear"], "only-tuner": ["tuner"], "only-player": ["player"], "only-library": ["library"], "only-scale": ["scale"], "only-prog": ["prog"], "only-box": ["box"], "only-chords": ["chords"], "only-keys": ["keys"],
-  "no-box": ["scale", "prog"], "with-formula": ["scale", "prog", "box"], "with-roots": ["scale", "prog", "box", "chords"],
+  "no-box": ["scale", "prog"], "with-formula": ["scale", "prog", "box"], "with-roots": ["scale", "prog", "box", "chords", "ruler"], "only-ruler": ["ruler"],
 };
 if (HASH_TAB[location.hash]) st.tab = HASH_TAB[location.hash];
 let chordSel = null;
@@ -3078,7 +3132,8 @@ function renderAll() {
   if (!TAB_HASH[st.tab]) st.tab = "scale";
   const prog = st.tab === "prog", box = st.tab === "box";
   for (const [cls, tabs] of Object.entries(VIS)) document.querySelectorAll("." + cls).forEach(el => el.hidden = !tabs.includes(st.tab));
-  if (prog || box || st.tab === "keys") st.lastModes = st.tab;
+  if (prog || box) st.lastModes = st.tab;
+  if (["scale", "keys", "ruler"].includes(st.tab)) st.lastScale = st.tab;
   if (st.tab === "player" || st.tab === "library") st.lastPlayer = st.tab;
   renderNav();
   $("lede").textContent = {
@@ -3088,6 +3143,7 @@ function renderAll() {
     box: "Tutti i box di un modo o di un arpeggio, colorati per grado, validi in qualsiasi tonalità.",
     chords: st.chView === "id" ? "Tocca i tasti e scopri il nome dell'accordo." : "Tutti gli accordi e tutti i modi di suonarli.",
     keys: "Il circolo delle quinte e, per ogni tonalità, armatura, accordi, modi e funzioni.",
+    ruler: "Il regolo musicale del libro: scegli la tonica e leggi le note di modi, scale e accordi.",
     ear: "Allena l'orecchio per livelli: note, intervalli, scale e modi, accordi, giri.",
     tuner: "Accorda la chitarra con il microfono del dispositivo.",
   }[st.tab] || "Scegli tonica e scala; tocca una nota per sentirla.";
@@ -3104,8 +3160,8 @@ function renderAll() {
   { const cur = st.labels === "alt" ? "intervals" : st.labels, c = labCycle().find(x => x[0] === cur) || labCycle()[0];
     $("labCycle").innerHTML = `<span class="lab-ico" aria-hidden="true">${c[2]}</span>${c[1]}`; $("labCycle").setAttribute("aria-label", `Sulle note: ${c[1]}. Tocca per cambiare`); }
   document.body.dataset.tab = st.tab;
-  { const ctxOk = ["scale", "prog", "box", "chords"].includes(st.tab); $("now").disabled = !ctxOk; if (!ctxOk || st.tab === "chords") ctxOpen(false); }
-  $("ctxTitle").textContent = st.tab === "prog" ? "Tonalità del brano" : st.tab === "box" ? "Tonica e modo" : "Tonica e scala";
+  { const ctxOk = ["scale", "prog", "box", "chords", "ruler"].includes(st.tab); $("now").disabled = !ctxOk; if (!ctxOk || st.tab === "chords") ctxOpen(false); }
+  $("ctxTitle").textContent = st.tab === "prog" ? "Tonalità del brano" : st.tab === "box" ? "Tonica e modo" : st.tab === "ruler" ? "Tonica" : "Tonica e scala";
   dockRender();
   $("plMain").hidden = st.tab !== "player" || !PL.audio;
   $("plDrop").hidden = st.tab !== "player" || !!PL.audio;
@@ -3147,7 +3203,8 @@ function renderAll() {
   if (document.activeElement !== $("progInput")) $("progInput").value = st.prog;
   $("presets").innerHTML = PRESETS.map((p, i) => `<button class="preset" data-i="${i}">${p.name}</button>`).join("");
 
-  $("now").innerHTML = current.tabTitle || cfg.title;
+  $("now").innerHTML = st.tab === "ruler" ? `<span class="label">Tonica</span> ${noteName(rootFrom(st.root))}` : current.tabTitle || cfg.title;
+  if (st.tab === "ruler") rlRender();
 
   if (!prog) {
     const kLabel = cfg.positions[0] ? (cfg.positions[0].k === 3 ? "3 note per corda" : "2 note per corda") : "";
@@ -3749,8 +3806,8 @@ const ICONS = {
 };
 const SECTIONS = [
   { id: "player", name: "Player", tabs: ["library", "player"], sub: [["library", "Libreria"], ["player", "Brano"]] },
-  { id: "scale", name: "Scale", tabs: ["scale"] },
-  { id: "modes", name: "Modi", tabs: ["prog", "box", "keys"], sub: [["prog", "Sulla progressione"], ["box", "Box e arpeggi"], ["keys", "Tonalità"]] },
+  { id: "scale", name: "Scale", tabs: ["scale", "keys", "ruler"], sub: [["scale", "Manico"], ["keys", "Tonalità"], ["ruler", "Regolo"]] },
+  { id: "modes", name: "Modi", tabs: ["prog", "box"], sub: [["prog", "Sulla progressione"], ["box", "Box e arpeggi"]] },
   { id: "chords", name: "Accordi", tabs: ["chords"], sub: [["lib", "Libreria"], ["id", "Che accordo è?"]] },
   { id: "practice", name: "Pratica", tabs: ["ear", "tuner"], sub: [["ear", "Orecchio"], ["tuner", "Accordatore"]] },
 ];
@@ -3773,7 +3830,7 @@ function goTab(tab) {
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-sec]"); if (!b) return;
   const sec = SECTIONS.find(s => s.id === b.dataset.sec);
-  goTab(sec.id === "modes" ? (st.lastModes || "prog") : sec.id === "player" ? (PL.audio ? "player" : "library") : sec.id === "practice" ? (st.lastPractice || "ear") : sec.tabs[0]); window.scrollTo(0, 0);
+  goTab(sec.id === "modes" ? (st.lastModes === "box" ? "box" : "prog") : sec.id === "scale" ? (st.lastScale || "scale") : sec.id === "player" ? (PL.audio ? "player" : "library") : sec.id === "practice" ? (st.lastPractice || "ear") : sec.tabs[0]); window.scrollTo(0, 0);
 });
 $("subnav").addEventListener("click", e => {
   const b = e.target.closest("[data-sub]"); if (!b) return;
@@ -3785,6 +3842,99 @@ $("labCycle").addEventListener("click", () => {
   const cyc = labCycle(), cur = st.labels === "alt" ? "intervals" : st.labels, i = cyc.findIndex(x => x[0] === cur);
   st.labels = cyc[(i + 1) % cyc.length][0]; save(); renderAll();
 });
+
+
+// ===================== Regolo (dal "Musical Sliderule" del libro) =====================
+// Righe = modelli di intervalli (finestre sui semitoni), sotto una striscia con le 12 note che si trascina:
+// la nota sotto l'1 è la tonica. Nei modi le righe partono dal loro grado della scala madre (sfalsate come nel libro).
+const RL_MAJ_OFF = ["1", "2", "3", "4", "5", "6", "7"], RL_HARM_OFF = ["1", "2", "b3", "4", "5", "b6", "7"];
+const RL_SETS = {
+  maj: { cols: 24, rows: MODES.map(([id], i) => ({ id, from: RL_MAJ_OFF[i], rn: ["I", "II", "III", "IV", "V", "VI", "VII"][i], q: ["magg.", "min.", "min.", "magg.", "magg.", "min.", "dim."][i] })) },
+  harm: { cols: 24, rows: ["harm", "locn6", "ion5", "dor4", "phrdom", "lyd2", "sloc7"].map((id, i) => ({ id, from: RL_HARM_OFF[i], rn: ["I", "II", "III", "IV", "V", "VI", "VII"][i], q: ["min.", "dim.", "aum.", "min.", "magg.", "magg.", "dim."][i] })) },
+  other: { cols: 13, rows: ["pmaj", "pmin", "blues", "mel", "whole", "dimwh", "dimhw"].map(id => ({ id, from: "1" })).concat([{ name: "Giro I – IV – V", deg: ["1", "4", "5"], from: "1" }]) },
+  chords: { cols: 22, rows: [["Maggiore", "1 3 5"], ["Minore", "1 b3 5"], ["Aumentato", "1 3 #5"], ["Diminuito", "1 b3 b5"], ["Sus4", "1 4 5"], ["7", "1 3 5 b7"], ["maj7", "1 3 5 7"],
+    ["m7", "1 b3 5 b7"], ["m(maj7)", "1 b3 5 7"], ["m7♭5 (semidim.)", "1 b3 b5 b7"], ["°7 (dim. 7)", "1 b3 b5 bb7"], ["6", "1 3 5 6"], ["m6", "1 b3 5 6"], ["7♯5", "1 3 #5 b7"], ["7♭5", "1 3 b5 b7"],
+    ["add9", "1 3 5 9"], ["6/9", "1 3 5 6 9"], ["9", "1 3 5 b7 9"], ["m9", "1 b3 5 b7 9"], ["7♭9", "1 3 5 b7 b9"], ["7♯9", "1 3 5 b7 #9"], ["11", "1 5 b7 9 11"], ["13", "1 3 5 b7 9 11 13"]]
+    .map(([name, d]) => ({ name, deg: d.split(" "), from: "1", chord: true })) },
+};
+const RL_MAJ = [0, 2, 4, 5, 7, 9, 11];
+const rlSemi = d => { const m = d.match(/^([b#]*)(\d+)$/); let a = 0; for (const c of m[1]) a += c === "#" ? 1 : -1; const n = +m[2]; return RL_MAJ[(n - 1) % 7] + 12 * Math.floor((n - 1) / 7) + a; };
+if (!st.rlSet) st.rlSet = "maj";
+let RL = { shift: 0, drag: null };
+function rlRows(rootIdx) {
+  const set = RL_SETS[st.rlSet] || RL_SETS.maj, r = rootFrom(mod12(rootIdx)), out = [];
+  set.rows.forEach(row => {
+    const sc = row.id ? scaleById(row.id) : null, deg = (row.deg || sc.deg).concat(row.chord ? [] : ["8"]);
+    const rr = spell(r.li, r.pc, row.from), off = rlSemi(row.from);
+    const cells = deg.map(d => { const n = spell(rr.li, rr.pc, d); return { col: off + rlSemi(d), d, n, num: parseDeg(d).n }; });
+    out.push({ row, name: row.name || sc.name, rr, off, cells });
+  });
+  return { set, rows: out, r };
+}
+function rlRender() {
+  const wrap = $("rlWrap"); if (!wrap || st.tab !== "ruler") return;
+  $("rlSets").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === st.rlSet)));
+  const narrow = matchMedia("(max-width: 600px)").matches;
+  const rootIdx = st.root + RL.shift, { set, rows, r } = rlRows(rootIdx), C = narrow ? 12 : set.cols;
+  const strip = Array.from({ length: C + 2 }, (_, c) => { const pc = mod12(r.pc + c - 1), n = pcRoot(pc); return `<span class="rl-note${c === 1 ? " root" : ""}">${noteName(n)}</span>`; }).join("");
+  if (narrow) rows.forEach(x => { x.cells = x.cells.filter(c => !(c.d === "8")).map(c => ({ ...c, col: c.col % 12 })); });
+  const rowsHtml = rows.map((x, k) => {
+    const cols = new Map(x.cells.map(c => [c.col, c])), lo = narrow ? -1 : Math.min(...x.cells.map(c => c.col)), hi = narrow ? 99 : Math.max(...x.cells.map(c => c.col));
+    const cells = Array.from({ length: C }, (_, c) => {
+      const w = cols.get(c);
+      if (w) return `<span class="rl-win${w.d === "1" ? " one" : ""}" style="--dc: var(--d${((w.num - 1) % 7) + 1})"><b>${noteName(w.n)}</b><small>${degLabel(w.d)}</small></span>`;
+      return `<span class="rl-gap${c > lo && c < hi ? " line" : ""}"></span>`;
+    }).join("");
+    const lab = x.row.rn ? `<span class="rl-rn">${x.row.rn}</span>` : "";
+    const sub = x.row.q ? `<small>${noteName(x.rr)} · ${x.row.q}</small>` : `<small>${noteName(x.rr)}</small>`;
+    const go = x.row.id ? `<button class="btn rl-go" data-rlgo="${k}" title="Apri sul manico">Sul manico</button>` : "";
+    if (narrow) return `<div class="rl-row rl-n"><div class="rl-top"><button class="rl-lab" data-rlplay="${k}">${lab}<span class="rl-name">${x.name}${sub}</span></button>${go}</div><div class="rl-cells">${cells}</div></div>`;
+    return `<div class="rl-row"><button class="rl-lab" data-rlplay="${k}">${lab}<span class="rl-name">${x.name}${sub}</span></button>${cells}${go ? `<span class="rl-end">${go}</span>` : ""}</div>`;
+  }).join("");
+  wrap.style.setProperty("--cols", C); wrap.classList.toggle("narrow", narrow);
+  wrap.innerHTML = `<div class="rl-grid">${rowsHtml}
+    <div class="rl-row rl-slider"><span class="rl-lab rl-ctrl"><button class="btn icon" data-rlstep="-1" aria-label="Tonica mezzo tono sotto">‹</button><b>${noteName(rootFrom(mod12(rootIdx)))}</b><button class="btn icon" data-rlstep="1" aria-label="Tonica mezzo tono sopra">›</button></span>
+      <div class="rl-strip" id="rlStrip" aria-label="Striscia delle note: trascinala per cambiare tonica"><div class="rl-track" id="rlTrack">${strip}</div></div></div></div>`;
+  RL.cur = rows;
+}
+function rlSetRoot(idx) { st.root = mod12(idx); save(); renderAll(); }
+$("rlSets").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; st.rlSet = b.dataset.v; save(); rlRender(); });
+$("rlWrap").addEventListener("click", e => {
+  const st1 = e.target.closest("[data-rlstep]"); if (st1) { rlSetRoot(st.root + +st1.dataset.rlstep); return; }
+  const pl = e.target.closest("[data-rlplay]");
+  if (pl) {                                        // sentire la riga: scala in salita, accordo arpeggiato e poi insieme
+    const x = RL.cur[+pl.dataset.rlplay], base = 48 + x.rr.pc - x.off + x.off;
+    ac(); const ms = x.cells.map(c => base + (c.col - x.off));
+    if (x.row.chord) { ms.forEach((m, i) => playMidi(m, i * 0.12, 0.4)); ms.forEach(m => playMidi(m, ms.length * 0.12 + 0.25, 0.3)); }
+    else ms.forEach((m, i) => playMidi(m, i * 0.2, 0.42));
+    return;
+  }
+  const go = e.target.closest("[data-rlgo]");
+  if (go) { const x = RL.cur[+go.dataset.rlgo]; st.scale = x.row.id; st.root = x.rr.pc; save(); goTab("scale"); window.scrollTo(0, 0); }
+});
+// la striscia si trascina come il cursore del regolo di cartone: a ogni casella superata la tonica cambia
+$("rlWrap").addEventListener("pointerdown", e => {
+  const strip = e.target.closest("#rlStrip"); if (!strip) return;
+  const cw = strip.querySelector(".rl-note")?.getBoundingClientRect().width || 34;
+  RL.drag = { x: e.clientX, cw, id: e.pointerId, moved: false }; try { strip.setPointerCapture(e.pointerId); } catch (err) {}
+});
+$("rlWrap").addEventListener("pointermove", e => {
+  const d = RL.drag; if (!d || e.pointerId !== d.id) return;
+  const dx = e.clientX - d.x; if (Math.abs(dx) > 3) d.moved = true;
+  const sh = -Math.round(dx / d.cw);
+  if (sh !== RL.shift) { RL.shift = sh; rlRender(); }
+  const tr = $("rlTrack"); if (tr) tr.style.transform = `translateX(${dx + RL.shift * d.cw}px)`;
+});
+const rlEnd = e => {
+  const d = RL.drag; if (!d || e.pointerId !== d.id) return;
+  RL.drag = null; const sh = RL.shift; RL.shift = 0;
+  if (!d.moved) {                                  // tocco su una nota della striscia: diventa la tonica
+    const n = e.target.closest(".rl-note"); if (n) { const i = [...n.parentNode.children].indexOf(n); rlSetRoot(st.root + i - 1); return; }
+  }
+  rlSetRoot(st.root + sh);
+};
+$("rlWrap").addEventListener("pointerup", rlEnd);
+$("rlWrap").addEventListener("pointercancel", rlEnd);
 
 // ===================== Microfono condiviso =====================
 // Si chiede una volta sola e si tiene aperto finché resti nell'accordatore o nell'esercizio di canto:
@@ -5564,6 +5714,7 @@ $("voLat").addEventListener("input", e => { st.voLat = +e.target.value; save(); 
 $("voReset").addEventListener("click", () => { VO.res = new Map(); VO.live = []; voScoreUi(); voDraw(); });
 $("voClose").addEventListener("click", () => { stmForget(); voMicStop(); VO.notes = null; VO.curve = null; try { localStorage.removeItem(PL.key + ":vo"); } catch (e) {} voUi(); });
 addEventListener("resize", () => voDraw());
+matchMedia("(max-width: 600px)").addEventListener?.("change", () => rlRender());
 
 
 
