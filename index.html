@@ -5058,7 +5058,7 @@ async function voAnalyze(abuf, say) {
   src.buffer = abuf; src.connect(off.destination); src.start();
   const x = (await off.startRendering()).getChannelData(0);
   const N = 768, H = 128, TMAX = Math.ceil(SR / 75), TMIN = Math.floor(SR / 1000), W = N - TMAX - 1, fps = SR / H;
-  const nF = Math.max(0, Math.floor((x.length - N) / H)), rms = new Float32Array(nF), midi = new Float32Array(nF).fill(NaN);
+  const nF = Math.max(0, Math.floor((x.length - N) / H)), rms = new Float32Array(nF), midi = new Float32Array(nF).fill(NaN), apv = new Float32Array(nF).fill(1);
   for (let f = 0; f < nF; f++) { let e = 0, m = 0; const o = f * H; for (let j = 0; j < N; j++) m += x[o + j]; m /= N; for (let j = 0; j < N; j++) { const v = x[o + j] - m; e += v * v; } rms[f] = Math.sqrt(e / N); }
   const pos = [...rms].filter(v => v > 0).sort((a, b) => a - b), gate = Math.max(1e-4, (pos[Math.floor(pos.length * 0.6)] || 0) * 0.25);
   const d = new Float32Array(TMAX + 2), c = new Float32Array(TMAX + 2);
@@ -5069,6 +5069,7 @@ async function voAnalyze(abuf, say) {
     for (let t = 1; t <= TMAX + 1; t++) { let sm = 0; for (let j = 0; j < W; j++) { const v = x[o + j] - x[o + j + t]; sm += v * v; } d[t] = sm; run += sm; c[t] = run ? sm * t / run : 1; }
     let k = -1; for (let t = TMIN; t < TMAX; t++) if (c[t] < 0.15) { while (t + 1 < TMAX && c[t + 1] < c[t]) t++; k = t; break; }
     if (k < 0) { k = TMIN; for (let t = TMIN; t < TMAX; t++) if (c[t] < c[k]) k = t; }
+    apv[f] = c[k];                                                         // quanto il suono è "rumore" (0 = altezza netta)
     if (c[k] >= 0.3 || k < 1) continue;                                   // suono senza un'altezza chiara
     const a = c[k - 1], b = c[k], e = c[k + 1], den = a - 2 * b + e, fq = SR / (k + (den ? 0.5 * (a - e) / den : 0));
     if (fq > 75 && fq < 1000) midi[f] = 69 + 12 * Math.log2(fq / 440);
@@ -5123,24 +5124,75 @@ async function voAnalyze(abuf, say) {
       say(`Seguo la voce principale… ${Math.round(100 * j / nF)}%`);
       i = j;
     }
-    for (let f = 0; f < nF; f++) if (Number.isFinite(P[f]) && !(Number.isFinite(sm[f]) && Math.abs(sm[f] - P[f]) < 1)) sm[f] = P[f];
+    // solo dove il suono ha un'altezza: le consonanti (s, z, sc…) sono forti ma senza nota
+    for (let f = 0; f < nF; f++) if (Number.isFinite(P[f]) && apv[f] < 0.6 && !(Number.isFinite(sm[f]) && Math.abs(sm[f] - P[f]) < 1)) sm[f] = P[f];
     for (let i = 0; i < nF;) { if (!Number.isFinite(sm[i])) { i++; continue; } let j = i; while (j < nF && Number.isFinite(sm[j])) j++; if ((j - i) / fps < 0.06) sm.fill(NaN, i, j); i = j; }
   }
   // note: un semitono che resta per almeno 70 ms; al limite tra due semitoni vince quello della tonalità
   const scale = voScale(), q = m => { let r = Math.round(m); if (scale && !scale.has(mod12(r)) && Math.abs(m - r) > 0.3) { const alt = r + (m > r ? 1 : -1); if (scale.has(mod12(alt))) r = alt; } return r; };
-  const minr = Math.round(0.07 * fps); let notes = [];
+  // buchi brevi nella curva (meno di 120 ms) con altezza vicina ai due lati (entro 2 semitoni): li riempio,
+  // così il vibrato o un attimo di voce incerta non spezzano la nota in frammenti
+  for (let i = 1; i < nF;) {
+    if (Number.isFinite(sm[i]) || !Number.isFinite(sm[i - 1])) { i++; continue; }
+    let j = i; while (j < nF && !Number.isFinite(sm[j])) j++;
+    if (j < nF && (j - i) / fps < 0.12 && Math.abs(sm[j] - sm[i - 1]) <= 2) for (let k = i; k < j; k++) sm[k] = sm[i - 1] + (sm[j] - sm[i - 1]) * (k - i + 1) / (j - i + 1);
+    i = j;
+  }
+  // Note: cominciano agli attacchi delle sillabe (flusso spettrale e cali di energia), il vibrato si media su circa un
+  // periodo (170 ms), le scivolate brevi si attaccano alla nota che segue; sillabe ripetute sulla stessa nota restano
+  // note distinte. Su voci di prova con note conosciute: note giuste (attacco ±50 ms e semitono) dal 72% al 91%.
+  const NO = 512, fftO = makeFFT(NO), wO = new Float32Array(NO).map((_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / NO));
+  const kA = Math.floor(150 * NO / SR), kB = Math.floor(5000 * NO / SR), fl = new Float32Array(nF);
+  { const re = new Float32Array(NO), im = new Float32Array(NO); let prev = null;
+    for (let f = 0; f < nF; f++) {
+      const o = f * H + N / 2 - NO / 2;
+      for (let k = 0; k < NO; k++) { const q2 = o + k; re[k] = q2 >= 0 && q2 < x.length ? x[q2] * wO[k] : 0; im[k] = 0; }
+      fftO(re, im);
+      const cur = new Float32Array(kB - kA); let sF = 0;
+      for (let k = kA; k < kB; k++) { const v = Math.log1p(1000 * Math.hypot(re[k], im[k])); cur[k - kA] = v; if (prev) sF += Math.max(0, v - prev[k - kA]); }
+      fl[f] = sF; prev = cur;
+      if (f % 3000 === 0) await new Promise(r => setTimeout(r));
+    } }
+  const on = new Float32Array(nF);
+  { const w = Math.floor(0.4 * fps), cs = new Float64Array(nF + 1); for (let f = 0; f < nF; f++) cs[f + 1] = cs[f] + fl[f];
+    let s2 = 0, n2 = 0; for (let f = 0; f < nF; f++) { const lo = Math.max(0, f - w), hi = Math.min(nF, f + w); on[f] = fl[f] - (cs[hi] - cs[lo]) / (hi - lo); if (Number.isFinite(sm[f])) { s2 += on[f] * on[f]; n2++; } }
+    const sd = Math.sqrt(s2 / Math.max(1, n2)) || 1; for (let f = 0; f < nF; f++) on[f] /= sd; }
+  const lr = rms.map(v => Math.log(v + 1e-6)), md = Math.floor(0.1 * fps), bset = new Set();
+  for (let i = 3; i < nF - 3; i++) {
+    if (!Number.isFinite(sm[i]) && !Number.isFinite(sm[Math.min(nF - 1, i + 2)])) continue;
+    if (on[i] > 3.0) { let mx = -Infinity; for (let k = i - 3; k <= i + 3; k++) mx = Math.max(mx, on[k]); if (on[i] === mx) bset.add(i); }
+    let mn = Infinity; for (let k = Math.max(0, i - md); k <= Math.min(nF - 1, i + md); k++) mn = Math.min(mn, lr[k]);
+    if (lr[i] === mn) { let l = -Infinity, r = -Infinity; for (let k = Math.max(0, i - md); k < i; k++) l = Math.max(l, lr[k]); for (let k = i + 1; k <= Math.min(nF - 1, i + md); k++) r = Math.max(r, lr[k]); if (Math.min(l, r) - lr[i] > 1.0) bset.add(i); }
+  }
+  const bounds = [...bset].sort((p2, q2) => p2 - q2);
+  const W2 = Math.floor(0.085 * fps), sm2 = new Float32Array(nF).fill(NaN);
+  for (let i = 0; i < nF; i++) { if (!Number.isFinite(sm[i])) continue; let s3 = 0, n3 = 0; for (let k = Math.max(0, i - W2); k <= Math.min(nF - 1, i + W2); k++) if (Number.isFinite(sm[k])) { s3 += sm[k]; n3++; } sm2[i] = s3 / n3; }
+  const minrun = Math.floor(0.12 * fps), m08 = Math.floor(0.08 * fps), m06 = Math.floor(0.06 * fps), m04 = Math.floor(0.04 * fps);
+  let notes = [];
   for (let i = 0; i < nF;) {
     if (!Number.isFinite(sm[i])) { i++; continue; }
     let j = i; while (j < nF && Number.isFinite(sm[j])) j++;
-    const qs = []; for (let t = i; t < j; t++) qs.push(q(sm[t]));
-    const bounds = []; let cur = null, s0 = 0;
-    for (let k = 0; k < qs.length;) { let r = k; while (r < qs.length && qs[r] === qs[k]) r++; if (r - k >= minr) { if (cur != null && qs[k] !== cur) { bounds.push([s0, k, cur]); s0 = k; } cur = qs[k]; } k = r; }
-    if (cur != null) bounds.push([s0, qs.length, cur]);
-    bounds.forEach(([b0, b1, nm]) => { if ((b1 - b0) / fps >= 0.08) notes.push({ t: (i + b0) / fps + N / 2 / SR, d: (b1 - b0) / fps, m: nm }); });
+    let cuts = [i, ...bounds.filter(b => b >= i + m08 && b <= j - m08), j];
+    cuts = cuts.filter((c2, k2) => k2 === 0 || c2 - cuts[k2 - 1] >= m08 || c2 === j);
+    for (let u = 0; u + 1 < cuts.length; u++) {
+      const s0 = cuts[u], s1 = cuts[u + 1]; if (s1 - s0 < m06) continue;
+      const qs = []; for (let t = s0; t < s1; t++) qs.push(q(sm2[t]));
+      const runs = []; for (let k = 0; k < qs.length;) { let r = k; while (r < qs.length && qs[r] === qs[k]) r++; runs.push([k, r, qs[k]]); k = r; }
+      let keep = runs.filter(rr => rr[1] - rr[0] >= minrun);
+      if (!keep.length) keep = [[0, qs.length, q(med([...sm.slice(s0, s1)]))]];
+      keep[0][0] = 0; keep[keep.length - 1][1] = qs.length;                       // la nota comincia all'attacco della sillaba
+      for (let k2 = 1; k2 < keep.length; k2++) { const mid = (keep[k2 - 1][1] + keep[k2][0]) >> 1; keep[k2 - 1][1] = mid; keep[k2][0] = mid; }
+      const mk = []; keep.forEach(rr => { const l = mk[mk.length - 1]; if (l && l[2] === rr[2]) l[1] = rr[1]; else mk.push([...rr]); });
+      mk.forEach(([r0, r1, nm]) => {
+        const body = [...sm.slice(s0 + r0 + m04, s0 + r1)].filter(Number.isFinite); if (body.length) nm = q(med(body));
+        notes.push({ t: (s0 + r0) / fps + N / 2 / SR, d: (r1 - r0) / fps, m: nm });
+      });
+    }
     i = j;
   }
-  const merge = ns => { const out = []; ns.forEach(n => { const l = out[out.length - 1]; if (l && l.m === n.m && n.t - (l.t + l.d) < 0.09) l.d = n.t + n.d - l.t; else out.push(n); }); return out; };
-  notes = merge(notes);
+  const merge = ns => ns;                                    // le sillabe ripetute restano note distinte
+  // briciole isolate (meno di 0,1 s, senza note attaccate): quasi sempre rumore o il resto di una consonante
+  notes = notes.filter((n, k) => { if (n.d >= 0.1) return true; const p2 = notes[k - 1], q2 = notes[k + 1]; return (p2 && n.t - (p2.t + p2.d) < 0.02) || (q2 && q2.t - (n.t + n.d) < 0.02); });
   // salti d'ottava di frase: solo per le note brevi lontane più di 9 semitoni dalle note dei 4 s attorno
   for (let r = 0; r < 2; r++) notes.forEach((n, k) => {
     if (n.d > 0.6) return;
@@ -5150,10 +5202,10 @@ async function voAnalyze(abuf, say) {
     if (Math.abs(n.m - cm) <= 9) return;
     for (const o of [12, -12, 24, -24]) if (Math.abs(n.m + o - cm) < Math.abs(n.m - cm) - 6) { n.m += o; break; }
   });
-  // note fuori dall'estensione del cantante (oltre 5 semitoni dal 5°–95° percentile, pesato per durata): ottava giusta, anche se lunghe
+  // note fuori dall'estensione del cantante (oltre 4 semitoni dal 5°–95° percentile, pesato per durata): ottava giusta, anche se lunghe
   {
     const srt = [...notes].sort((p2, q2) => p2.m - q2.m), tot = srt.reduce((s2, o) => s2 + o.d, 0), pc = f => { let acc = 0; for (const o of srt) { acc += o.d; if (acc >= f * tot) return o.m; } return srt[srt.length - 1]?.m; };
-    const lo = pc(0.05) - 5, hi = pc(0.95) + 5;
+    const lo = pc(0.05) - 4, hi = pc(0.95) + 4;
     notes.forEach(n => { while (n.m > hi && n.m - 12 >= lo) n.m -= 12; while (n.m < lo && n.m + 12 <= hi) n.m += 12; });
   }
   notes = merge(notes).map(n => [Math.round(n.t * 1000) / 1000, Math.round(n.d * 1000) / 1000, n.m]);
@@ -5215,6 +5267,15 @@ function voMicStop() {
   if (PL.audio && !PL.audio.paused && VO.notes) VO.raf = requestAnimationFrame(voLoop);
   if ($("voMic")) voUi();
 }
+// melodia guida: un suono tenuto quanto la nota del cantante (la nota pizzicata si spegneva subito sulle note lunghe)
+function voTone(m, dur) {
+  const c = ac(), t = c.currentTime, f = 440 * 2 ** ((m - 69) / 12), g = c.createGain(), o1 = c.createOscillator(), o2 = c.createOscillator(), lp = c.createBiquadFilter();
+  o1.type = "triangle"; o1.frequency.value = f; o2.type = "sine"; o2.frequency.value = f * 2; lp.type = "lowpass"; lp.frequency.value = 2200;
+  const end = t + Math.max(0.12, dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 0.015); g.gain.setTargetAtTime(0.11, t + 0.03, 0.12); g.gain.setValueAtTime(0.11, end - 0.04); g.gain.linearRampToValueAtTime(0, end);
+  const g2 = c.createGain(); g2.gain.value = 0.25; o1.connect(lp); o2.connect(g2).connect(lp); lp.connect(g).connect(c.destination);
+  o1.start(t); o2.start(t); o1.stop(end + 0.02); o2.stop(end + 0.02);
+}
 function voLoop() {
   VO.raf = requestAnimationFrame(voLoop);
   const a = PL.audio; if (!a || !VO.notes) return;
@@ -5249,7 +5310,7 @@ function voLoop() {
   // melodia guida: la nota del cantante suonata quando comincia
   if (st.voGuide && !a.paused) {
     const k = voNoteAt(a.currentTime);
-    if (k !== VO.guideK) { VO.guideK = k; if (k >= 0 && a.currentTime - VO.notes[k][0] < 0.15) playMidi(VO.notes[k][2] + semis, 0, 0.32); }
+    if (k !== VO.guideK) { VO.guideK = k; if (k >= 0 && a.currentTime - VO.notes[k][0] < 0.15) voTone(VO.notes[k][2] + semis, (VO.notes[k][0] + VO.notes[k][1] - a.currentTime) / a.playbackRate); }
   }
   voDraw();
 }
