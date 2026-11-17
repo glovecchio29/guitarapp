@@ -818,7 +818,7 @@ svg.mini .mute-x { font-size: 12px; }
   .st-cell { padding: 7px 0 5px; }
 }
 
-/* Box dei modi come nelle tavole del libro */
+/* Box dei modi: 4 tasti centrali più i tasti di shift */
 :root { --mb-paper: #ffffff; --mb-shift: #d6d9dd; --mb-ink: #2a2d31; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --mb-paper: #e9ebee; --mb-shift: #b4b9bf; --mb-ink: #1b1e21; } }
 :root[data-theme="dark"] { --mb-paper: #e9ebee; --mb-shift: #b4b9bf; --mb-ink: #1b1e21; }
@@ -989,6 +989,9 @@ details.more > summary::-webkit-details-marker { display: none; }
 .rl-wrap.narrow .rl-track { margin-left: calc(-100% / 12); width: calc(100% * 14 / 12); }
 .rl-wrap.narrow .rl-note { width: calc(100% / 14); font-size: 10.5px; height: 36px; }
 @media (max-width: 600px) { .rl-sets .lg { display: none; } .rl-sets .sm { display: inline; } .rl-sets { flex-wrap: nowrap; } .rl-sets button { flex: 1; padding: 8px 2px; font-size: 13px; } .rl-go { font-size: 11.5px; padding: 3px 8px; } }
+.badge-beta { display: inline-block; font: 600 10.5px var(--font-body); letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); vertical-align: middle; margin-left: 4px; }
+[aria-pressed="true"] > .badge-beta { color: inherit; border-color: currentColor; }
+.rl-credit { margin-top: 10px; } .rl-credit a { color: var(--fg); }
 </style>
 
 <div class="app">
@@ -1065,7 +1068,7 @@ details.more > summary::-webkit-details-marker { display: none; }
       </section>
 
       <div class="seg pl-modes" id="plModes" role="tablist" aria-label="Cosa fare con il brano">
-        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata</button><button role="tab" data-plm="voice">Canta</button>
+        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata <span class="badge-beta">beta</span></button><button role="tab" data-plm="voice">Canta</button>
       </div>
       <section class="panel pl-prep" id="plPrep" aria-label="Prepara il brano" hidden></section>
       <div class="pl-nowmini" id="plNowMini" hidden><span class="label">Adesso</span><b id="nmCur">–</b><span class="label">Poi</span><b id="nmNext">–</b><small id="nmIn"></small></div>
@@ -1136,14 +1139,14 @@ details.more > summary::-webkit-details-marker { display: none; }
       </section>
 
       <section class="panel" aria-label="Pennata" id="plStrum" data-plm-of="strum" hidden>
-        <div class="card-head"><h2>Pennata</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
+        <div class="card-head"><h2>Pennata <span class="badge-beta">beta</span></h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
           <div class="grp"><button class="btn" id="stPreview">▶ Prova</button><label class="check"><input type="checkbox" id="stOver"> Suona sopra il brano</label></div></div>
         <div class="st-sugg" id="stSugg"></div>
         <div class="st-pick"><select id="stSel" aria-label="Pattern di pennata"></select><span class="hint" id="stInfo"></span></div>
         <div class="st-grid" id="stGrid" role="group" aria-label="Pattern: tocca una casella per cambiarla"></div>
         <p class="hint">Tocca una casella per cambiarla: colpo, accentato, smorzato (×), vuoto.</p>
         <p class="hint help">Frecce piene: colpisci le corde. Frecce chiare: la mano si muove lo stesso ma non tocca le corde. Le caselle con la riga sotto e la freccia più grande sono accenti: colpisci più forte. Nelle pennate ricavate dal brano gli accenti vengono dalla forza dei colpi.</p>
-        <details class="explain st-book"><summary><h2>Consigli del libro</h2></summary>
+        <details class="explain st-book"><summary><h2>Consigli per la pennata</h2></summary>
           <ul class="st-tips">
             <li><b>Il polso è un pendolo.</b> Va giù e su di continuo, a tempo: giù sui battiti, su in levare. I colpi a vuoto non fermano la mano, servono solo a far suonare più a lungo l'accordo.</li>
             <li><b>Prima la velocità della mano.</b> Capisci qual è il colpo più veloce del pattern: ottavi (1 + 2 + …) o sedicesimi (1 e + a 2 e + a …). La mano si muove sempre a quella velocità.</li>
@@ -1318,8 +1321,9 @@ details.more > summary::-webkit-details-marker { display: none; }
         <button data-v="maj"><span class="lg">Modi della maggiore</span><span class="sm">Maggiore</span></button><button data-v="harm"><span class="lg">Modi della minore armonica</span><span class="sm">Min. armonica</span></button><button data-v="other"><span class="lg">Altre scale</span><span class="sm">Scale</span></button><button data-v="chords"><span class="lg">Accordi e arpeggi</span><span class="sm">Accordi</span></button>
       </div>
       <p class="hint">Trascina la striscia delle note (o usa ‹ ›) per cambiare tonica. Tocca il nome di una riga per sentirla.</p>
-      <p class="hint help">È il regolo del libro: le finestre di ogni riga stanno sui semitoni del modo, della scala o dell'accordo; sotto scorre la striscia con le 12 note. Quando metti una nota sotto l'1, in ogni finestra leggi le note e sotto il grado. Nei modi della maggiore (e della minore armonica) le righe sono sfalsate: ogni modo comincia sul suo grado della scala madre, quindi le note in colonna sono le stesse. Il numero romano è il grado, accanto il tipo di accordo che nasce lì. "Sul manico" apre quel modo nella scheda Manico.</p>
+      <p class="hint help">Le finestre di ogni riga stanno sui semitoni del modo, della scala o dell'accordo; sotto scorre la striscia con le 12 note. Quando metti una nota sotto l'1, in ogni finestra leggi le note e sotto il grado. Nei modi della maggiore (e della minore armonica) le righe sono sfalsate: ogni modo comincia sul suo grado della scala madre, quindi le note in colonna sono le stesse. Il numero romano è il grado, accanto il tipo di accordo che nasce lì. "Sul manico" apre quel modo nella scheda Manico.</p>
       <div class="rl-wrap" id="rlWrap"></div>
+      <p class="hint rl-credit">Ispirato al "Musical Sliderule" di Scotty, dal corso <a href="https://www.absolutelyunderstandguitar.com/" target="_blank" rel="noopener">Absolutely Understand Guitar</a>.</p>
     </section>
 
     <!-- ===== TONALITÀ ===== -->
@@ -2280,7 +2284,7 @@ function progLegend(cfg, colored) {
 }
 
 // ---- box singolo in miniatura (solo i tasti del box)
-// Finestra "del libro" attorno a una posizione: 4 tasti centrali + i tasti di shift sopra e sotto.
+// Finestra di 6 tasti attorno a una posizione: 4 tasti centrali + i tasti di shift sopra e sotto.
 // Note: tutte quelle della scala sui tasti centrali; sui tasti di shift quelle che al centro non ci sono (shift d'indice o di mignolo),
 // più le note della posizione stessa. Così compare anche l'altro modo di prendere una nota, come nelle tavole.
 function bookBox(cfg) {
@@ -2289,7 +2293,7 @@ function bookBox(cfg) {
   const tun = tuningObj().midi, nS = tun.length, pcs = new Set(cfg.notes.map(n => n.pc));
   const fr = p.notes.map(n => n.f).filter(f => f > 0), hasOpen = p.notes.some(n => n.f === 0);
   const lo = fr.length ? Math.min(...fr) : 1, hi = fr.length ? Math.max(...fr) : 1;
-  // sempre 6 tasti come nel libro: 1 grigio, i 4 centrali con più note della posizione, 1 grigio
+  // sempre 6 tasti: 1 grigio, i 4 centrali con più note della posizione, 1 grigio
   let c = Math.max(1, lo), bestS = -Infinity;
   for (const cand of [lo, lo - 1, lo + 1, lo + 2]) {
     if (cand < 1) continue;
@@ -2314,7 +2318,7 @@ function bookBox(cfg) {
   return p._book;
 }
 function miniSvg(cfg, vertical = false) {
-  // Box singolo come nelle tavole del libro: 4 tasti centrali chiari (dove sta la mano), un tasto grigio sopra e uno sotto
+  // Box singolo: 4 tasti centrali chiari (dove sta la mano), un tasto grigio sopra e uno sotto
   // per gli shift d'indice e di mignolo. Il numero accanto è il primo tasto centrale.
   const p = cfg.pos; if (!p) return "";
   const tun = tuningObj(), nS = tun.midi.length;
@@ -2396,7 +2400,7 @@ function modeBoxSvg(cfg, n, vertical) {
       ? `<line class="mb-ink" x1="${X(pad + s * cs)}" x2="${X(pad + s * cs)}" y1="${pad}" y2="${pad + rows * rh}" stroke-width="1.2"/>`
       : `<line class="mb-ink" x1="${pad}" x2="${pad + rows * rh}" y1="${pad + (nS - 1 - s) * cs}" y2="${pad + (nS - 1 - s) * cs}" stroke-width="1.2"/>`;
   }
-  // Come nelle tavole del libro, sui tasti di shift (righe 0 e 5) compaiono solo le note che non ci sono già sui 4 tasti centrali:
+  // Sui tasti di shift (righe 0 e 5) compaiono solo le note che non ci sono già sui 4 tasti centrali:
   // sono quelle da prendere con lo shift d'indice (sopra) o di mignolo (sotto).
   const inner = new Set();
   for (let s = 0; s < nS; s++) for (let k = 1; k < rows - 1; k++) inner.add(tun[s] + top + k);
@@ -2435,7 +2439,7 @@ function renderModeBoxes(cfg) {
   $("mbFormsField").hidden = !(forms && !scale.allBoxes);
   $("mbHint").textContent = onlyForms
     ? "Le 8 forme dell'arpeggio prendono il nome dall'accordo aperto da cui derivano (E, A, D, G, C): la forma E ha la tonica sulla 6ª corda, la A sulla 5ª, la D sulla 4ª. Finestre di 6 tasti senza numeri: valgono per qualsiasi tonica."
-    : "12 finestre di 6 tasti, senza numeri di tasto: valgono in qualsiasi tonalità. Da un box al successivo la tonica (rossa) scende di un tasto nella finestra. Come nelle tavole del libro, i 4 tasti centrali sono chiari e le righe grigie in alto e in basso sono i tasti di shift: ci arrivi allungando l'indice (sopra) o il mignolo (sotto). Il libro consiglia lo shift d'indice salendo e quello di mignolo scendendo.";
+    : "12 finestre di 6 tasti, senza numeri di tasto: valgono in qualsiasi tonalità. Da un box al successivo la tonica (rossa) scende di un tasto nella finestra. I 4 tasti centrali sono chiari e le righe grigie in alto e in basso sono i tasti di shift: ci arrivi allungando l'indice (sopra) o il mignolo (sotto). Di solito conviene lo shift d'indice salendo e quello di mignolo scendendo.";
   $("modeBoxes").classList.toggle("h", !vertical);
   $("modeBoxes").innerHTML = list.map(b =>
     `<div class="mb" data-n="${b.n}"><button class="mbt" data-n="${b.n}" aria-label="Suona ${b.title}">${b.title}<span>${b.sub ? b.sub + " " : ""}▶</span></button>${modeBoxSvg(cfg, b.n, vertical)}</div>`).join("");
@@ -3143,7 +3147,7 @@ function renderAll() {
     box: "Tutti i box di un modo o di un arpeggio, colorati per grado, validi in qualsiasi tonalità.",
     chords: st.chView === "id" ? "Tocca i tasti e scopri il nome dell'accordo." : "Tutti gli accordi e tutti i modi di suonarli.",
     keys: "Il circolo delle quinte e, per ogni tonalità, armatura, accordi, modi e funzioni.",
-    ruler: "Il regolo musicale del libro: scegli la tonica e leggi le note di modi, scale e accordi.",
+    ruler: "Un regolo musicale: scegli la tonica e leggi le note di modi, scale e accordi.",
     ear: "Allena l'orecchio per livelli: note, intervalli, scale e modi, accordi, giri.",
     tuner: "Accorda la chitarra con il microfono del dispositivo.",
   }[st.tab] || "Scegli tonica e scala; tocca una nota per sentirla.";
@@ -3277,7 +3281,7 @@ $("zone").innerHTML = Array.from({ length: 16 }, (_, i) => `<option value="${i}"
 if (!st.prog) st.prog = presetText(0);
 
 // ===================== Orecchio (ear trainer) =====================
-// Impostato come nel libro: si procede per livelli (la nota → intervalli → scale e modi → accordi → progressioni)
+// Si procede per livelli (la nota → intervalli → scale e modi → accordi → progressioni)
 // e ogni schema va conosciuto in 4 modi: pensarlo, leggerlo, sentirlo, suonarlo.
 // Qui si allena il "sentirlo"; dopo ogni risposta compaiono anche gli altri tre.
 const EAR_INT = [
@@ -3369,7 +3373,7 @@ const EAR_EX = [
         read: `${noteName(pcRoot(r % 12))} – ${noteName(spell(pcRoot(r % 12).li, r % 12, it.id === 12 ? "8" : SEMI_DEG[it.id]))}`,
         hear: `Ricorda: ${it.ref}.`, shape: earShape(r, [r, r + it.id], "Sul manico") };
     } },
-  { id: "deg", lvl: 2, lvlName: "Intervalli", name: "Gradi nella tonalità", desc: "Prima senti la tonalità (I–IV–V–I), poi una nota: che grado è? Come dice il libro, impara a dire il numero di ogni nota.",
+  { id: "deg", lvl: 2, lvlName: "Intervalli", name: "Gradi nella tonalità", desc: "Prima senti la tonalità (I–IV–V–I), poi una nota: che grado è? Impara a dire il numero di ogni nota.",
     opts: [{ key: "dset", label: "Note", vals: [["dia", "Della scala (1–7)"], ["chr", "Anche alterate"]], def: "dia" }],
     items: o => EAR_DEG.filter(([s]) => o.dset === "chr" || MAJ.includes(s)).map(([s, d]) => [String(s), d]), defItems: null,
     make(o, sel) {
@@ -3427,7 +3431,7 @@ const EAR_EX = [
         think: `${sel.replace(/-/g, " – ")} in ${noteName(k)} ${minorKey ? "minore" : "maggiore"}`, read: names.join(" → "),
         hear: "Il primo e l'ultimo accordo di solito sono \"casa\"; il V crea attesa, il IV si allontana.", shape: "" };
     } },
-  { id: "home", lvl: 5, lvlName: "Progressioni", name: "Maggiore o minore?", desc: "Un giro di accordi: la tonalità è maggiore o minore? Come dice il libro, trovare l'accordo di casa è una delle prime sfide.",
+  { id: "home", lvl: 5, lvlName: "Progressioni", name: "Maggiore o minore?", desc: "Un giro di accordi: la tonalità è maggiore o minore? Trovare l'accordo di casa è una delle prime sfide.",
     opts: [], items: () => [["maj", "Maggiore"], ["min", "Minore"]], defItems: ["maj", "min"],
     make(o, sel) {
       const r = earRootMidi(), pool = sel === "maj" ? [[[0, "maj"], [5, "maj"], [7, "maj"], [0, "maj"]], [[0, "maj"], [9, "min"], [5, "maj"], [7, "maj"], [0, "maj"]], [[0, "maj"], [7, "maj"], [9, "min"], [5, "maj"], [0, "maj"]]]
@@ -3481,9 +3485,9 @@ function earRender(force) {
   const ex = earById(st.earEx), o = earOpts(ex), all = ex.items(o), sel = earSel(ex, o);
   const stats = st.earStats || {};
   const acc = id => { const s = stats[id] || {}; let ok = 0, n = 0; Object.values(s).forEach(([a, b]) => { ok += a; n += b; }); return n ? Math.round(100 * ok / n) + "%" : ""; };
-  // scelta dell'esercizio, per livelli come nel libro
+  // scelta dell'esercizio, per livelli
   const lv = [...new Set(EAR_EX.map(e => e.lvl))];
-  $("earPick").innerHTML = `<p class="hint ear-intro">Come insegna il libro, ogni schema va conosciuto in 4 modi: <b>pensarlo, leggerlo, sentirlo, suonarlo</b>. Qui alleni il sentirlo; dopo ogni risposta trovi anche gli altri tre. Procedi per livelli, dal più semplice.</p>
+  $("earPick").innerHTML = `<p class="hint ear-intro">Ogni schema va conosciuto in 4 modi: <b>pensarlo, leggerlo, sentirlo, suonarlo</b>. Qui alleni il sentirlo; dopo ogni risposta trovi anche gli altri tre. Procedi per livelli, dal più semplice.</p>
     <div class="ear-levels">${lv.map(l => { const exs = EAR_EX.filter(e => e.lvl === l); return `<div class="ear-lvl"><span class="label">Livello ${l} · ${exs[0].lvlName}</span><div class="ear-exs">${exs.map(e =>
       `<button class="ear-ex" data-ex="${e.id}" aria-pressed="${e.id === ex.id}"><b>${e.name}</b>${acc(e.id) ? `<span>${acc(e.id)} giuste</span><span class="ear-prog" aria-hidden="true"><i style="width:${acc(e.id)}"></i></span>` : "<span>da provare</span>"}</button>`).join("")}</div></div>`; }).join("")}</div>`;
   if (ex.sing) { singRender(force); return; }
@@ -3844,9 +3848,9 @@ $("labCycle").addEventListener("click", () => {
 });
 
 
-// ===================== Regolo (dal "Musical Sliderule" del libro) =====================
+// ===================== Regolo (ispirato al "Musical Sliderule" di Scotty) =====================
 // Righe = modelli di intervalli (finestre sui semitoni), sotto una striscia con le 12 note che si trascina:
-// la nota sotto l'1 è la tonica. Nei modi le righe partono dal loro grado della scala madre (sfalsate come nel libro).
+// la nota sotto l'1 è la tonica. Nei modi le righe partono dal loro grado della scala madre (sfalsate).
 const RL_MAJ_OFF = ["1", "2", "3", "4", "5", "6", "7"], RL_HARM_OFF = ["1", "2", "b3", "4", "5", "b6", "7"];
 const RL_SETS = {
   maj: { cols: 24, rows: MODES.map(([id], i) => ({ id, from: RL_MAJ_OFF[i], rn: ["I", "II", "III", "IV", "V", "VI", "VII"][i], q: ["magg.", "min.", "min.", "magg.", "magg.", "min.", "dim."][i] })) },
@@ -5013,13 +5017,13 @@ $("tbChords").addEventListener("click", () => { const sh = tbChordSeq(); if (sh.
 
 // ===================== Pennata (strumming) =====================
 // Pattern scritti come griglia: D = giù, U = su, B = solo la nota di basso, x = colpo smorzato, . = colpo a vuoto.
-// La mano segue il pendolo del libro: nelle caselle vuote la freccia chiara mostra dove sta andando.
+// La mano segue il pendolo: nelle caselle vuote la freccia chiara mostra dove sta andando.
 const STRUMS = [
-  { id: "b1", g: "Esercizio del libro: cambi a tempo", name: "1 · Un colpo per battuta", meter: 4, sub: 2, cells: "D......." },
-  { id: "b2", g: "Esercizio del libro: cambi a tempo", name: "2 · Due colpi per battuta", meter: 4, sub: 2, cells: "D...D..." },
-  { id: "b3", g: "Esercizio del libro: cambi a tempo", name: "3 · Quattro colpi giù", meter: 4, sub: 2, cells: "D.D.D.D." },
-  { id: "b4", g: "Esercizio del libro: cambi a tempo", name: "4 · Giù e su (ottavi)", meter: 4, sub: 2, cells: "DUDUDUDU" },
-  { id: "b5", g: "Esercizio del libro: cambi a tempo", name: "5 · Doppio tempo (sedicesimi)", meter: 4, sub: 4, cells: "DUDUDUDUDUDUDUDU" },
+  { id: "b1", g: "Esercizi: cambi a tempo", name: "1 · Un colpo per battuta", meter: 4, sub: 2, cells: "D......." },
+  { id: "b2", g: "Esercizi: cambi a tempo", name: "2 · Due colpi per battuta", meter: 4, sub: 2, cells: "D...D..." },
+  { id: "b3", g: "Esercizi: cambi a tempo", name: "3 · Quattro colpi giù", meter: 4, sub: 2, cells: "D.D.D.D." },
+  { id: "b4", g: "Esercizi: cambi a tempo", name: "4 · Giù e su (ottavi)", meter: 4, sub: 2, cells: "DUDUDUDU" },
+  { id: "b5", g: "Esercizi: cambi a tempo", name: "5 · Doppio tempo (sedicesimi)", meter: 4, sub: 4, cells: "DUDUDUDUDUDUDUDU" },
   { id: "pop", g: "4/4", name: "Il classico pop/folk", meter: 4, sub: 2, cells: "D.DU.UDU", acc: [0, 4] },
   { id: "ballad", g: "4/4", name: "Ballata", meter: 4, sub: 2, cells: "D.D.DUDU", acc: [0] },
   { id: "rock8", g: "4/4", name: "Rock a ottavi (tutto giù)", meter: 4, sub: 2, cells: "DDDDDDDD", acc: [2, 6] },
@@ -5870,7 +5874,7 @@ function plPrepRender(force) {
   el.innerHTML = `<div class="pp-head"><h2>${all ? "Brano pronto" : "Preparo il brano"}</h2>${chS === "run" ? `<div class="progress pp-bar"><div class="bar" style="width:${Math.round((PL.chProgP || 0) * 100)}%"></div></div>` : ""}</div>
     <ul class="pp-list">
       ${row("chords", chS, "Accordi", `${ch ? ch.segs.filter(x => x.q !== "N").length : 0} cambi`, chS === "run" ? "li sto riconoscendo…" : chS === "todo" ? `<button class="btn" data-ppgo="detect">Riconosci</button>` : "aspetto il brano…")}
-      ${row("strum", stS, "Pennate", "ricavate dal brano", stS === "run" ? "le sto ricavando…" : stS === "todo" ? `<button class="btn" data-ppgo="strum">Ricava</button>` : "dopo gli accordi")}
+      ${row("strum", stS, "Pennate (beta)", "ricavate dal brano", stS === "run" ? "le sto ricavando…" : stS === "todo" ? `<button class="btn" data-ppgo="strum">Ricava</button>` : "dopo gli accordi")}
       ${row("voice", voS, "Voce del cantante", `${vn} note`, voS === "run" ? "la sto ascoltando…" : `<button class="btn" data-ppgo="voice">Carica la traccia voce</button>`)}
       ${row("tab", tbS, "Tablatura", gp ? esc(gp.name || "file aperto") : "", `<button class="btn" data-ppgo="tab">Importa (facoltativo)</button>`)}
     </ul>
