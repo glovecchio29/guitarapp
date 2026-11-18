@@ -992,6 +992,8 @@ details.more > summary::-webkit-details-marker { display: none; }
 .badge-beta { display: inline-block; font: 600 10.5px var(--font-body); letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); vertical-align: middle; margin-left: 4px; }
 [aria-pressed="true"] > .badge-beta { color: inherit; border-color: currentColor; }
 .rl-credit { margin-top: 10px; } .rl-credit a { color: var(--fg); }
+.tb-paste { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.tb-paste textarea { width: 100%; box-sizing: border-box; font: 13px/1.35 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre; overflow-x: auto; resize: vertical; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
 </style>
 
 <div class="app">
@@ -1119,8 +1121,14 @@ details.more > summary::-webkit-details-marker { display: none; }
 
       <section class="panel" aria-label="Tablatura" id="plTab" data-plm-of="tab">
         <div class="card-head"><h2>Tablatura</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
-          <div class="grp"><label class="btn file-btn">Importa Guitar Pro o MusicXML<input type="file" id="tbFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl"></label></div></div>
-        <p class="hint" id="tbHint">Apri il file Guitar Pro o MusicXML del brano: la tab scorre con la musica.</p>
+          <div class="grp"><button class="btn" type="button" id="tbPasteBtn" aria-expanded="false">Incolla una tab</button><label class="btn file-btn">Importa Guitar Pro o MusicXML<input type="file" id="tbFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl"></label></div></div>
+        <p class="hint" id="tbHint">Apri il file Guitar Pro o MusicXML del brano, oppure incolla una tab scritta a testo (come quelle di Ultimate Guitar): la tab scorre con la musica.</p>
+        <div class="tb-paste" id="tbPaste" hidden>
+          <label class="field"><span class="label">Tab a testo</span>
+            <textarea id="tbPasteTxt" rows="10" spellcheck="false" placeholder="e|-------0---------|&#10;B|-----1---1-------|&#10;G|---0-------0-----|&#10;D|-2---------------|&#10;A|-3---------------|&#10;E|-----------------|"></textarea></label>
+          <div class="grp"><button class="btn primary" type="button" id="tbPasteGo">Crea la tab</button><button class="btn" type="button" id="tbPasteClose">Chiudi</button></div>
+          <p class="hint" id="tbPasteMsg">Copia la tab dal sito con le righe delle corde (e B G D A E) e incollala qui. Le tab a testo non scrivono il ritmo: lo ricavo dalla distanza tra i numeri, poi l'aggancio al brano lo mette a tempo con la musica.</p>
+        </div>
         <p class="hint help">Se hai il file della tab del brano (Guitar Pro 3–8 o MusicXML, per esempio scaricato dal sito dove l'hai comprata o trovata), aprilo qui: vedi la tablatura e puoi mettere a tempo con il brano gli accordi che contiene.</p>
         <div class="tb-bar" id="tbBar" hidden>
           <span class="tb-info" id="tbInfo"></span>
@@ -4699,6 +4707,7 @@ function atSettings() {
   S.core.fontDirectory = AT_URL + "font/"; S.core.useWorkers = false;
   S.core.smuflFontSources = new Map([[alphaTab.FontFileFormat.Woff2, "data:font/woff2;base64," + BRAVURA_WOFF2]]);
   S.display.staveProfile = alphaTab.StaveProfile.Tab; S.display.scale = 0.95;
+  try { S.notation.elements.set(alphaTab.NotationElement.EffectDynamics, false); } catch (e) {}
   // la tab segue il nostro lettore: alphaTab non suona, muove solo il cursore (modalità "media esterno")
   S.player.playerMode = alphaTab.PlayerMode.EnabledExternalMedia;
   S.player.enableCursor = true; S.player.enableAnimatedBeatCursor = true; S.player.enableUserInteraction = true;
@@ -4711,17 +4720,21 @@ async function tbOpen(bytes, name, persist = true) {
   $("tbStatus").textContent = "Apro il file…";
   try {
     await atLoad();
-    const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, atSettings());
+    if (PL.gp?.api) { try { PL.gp.ro?.disconnect(); PL.gp.api.destroy(); } catch (e) {} $("tbView").innerHTML = ""; }
+    let score;
+    if (bytes && bytes.tex != null) { const imp = new alphaTab.importer.AlphaTexImporter(); imp.initFromString(bytes.tex, atSettings()); score = imp.readScore(); }
+    else score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, atSettings());
     const tracks = score.tracks.map((t, i) => ({ i, t })).filter(x => !x.t.staves.every(st => st.isPercussion));
     if (!tracks.length) throw new Error("nessuna traccia");
     PL.gp = { score, name, tracks: tracks.map(x => x.i), anchors: (() => { try { return JSON.parse(localStorage.getItem(PL.key + ":gpanc") || "[]"); } catch (e) { return []; } })(), offMs: (() => { try { return +localStorage.getItem(PL.key + ":gpoff") || 0; } catch (e) { return 0; } })() };
     const pick = tracks.find(x => /guit|chitar|gtr|acoust|rhythm/i.test(x.t.name)) || tracks[0];
     PL.gp.track = pick.i;
-    if (persist && bytes.length < 1.5e6) { try { localStorage.setItem(PL.key + ":gp", JSON.stringify({ name, data: b64.enc(bytes) })); } catch (e) {} }
+    if (persist && bytes.tex != null) { try { localStorage.setItem(PL.key + ":gp", JSON.stringify({ name, tex: bytes.tex })); } catch (e) {} }
+    else if (persist && bytes.length < 1.5e6) { try { localStorage.setItem(PL.key + ":gp", JSON.stringify({ name, data: b64.enc(bytes) })); } catch (e) {} }
     tbRender();
   } catch (err) {
     console.error(err);
-    $("tbStatus").textContent = err.message === "alphaTab" ? "Non riesco a caricare il lettore di tablature: serve la connessione la prima volta." : "Non riesco a leggere questo file: deve essere Guitar Pro (3–8) o MusicXML.";
+    $("tbStatus").textContent = err.message === "alphaTab" ? "Non riesco a caricare il lettore di tablature: serve la connessione la prima volta." : bytes && bytes.tex != null ? "Non riesco a costruire la tab da questo testo: controlla che le righe delle corde siano allineate." : "Non riesco a leggere questo file: deve essere Guitar Pro (3–8) o MusicXML.";
   }
 }
 function tbRender() {
@@ -4976,7 +4989,7 @@ function tbAutoUi() { $("tbAuto").checked = st.tbAuto !== false; }
 function tbRestore() {
   PL.gp = null; let saved = null;
   try { saved = JSON.parse(localStorage.getItem(PL.key + ":gp") || "null"); } catch (e) {}
-  if (saved) tbOpen(b64.dec(saved.data), saved.name, false); else tbRender();
+  if (saved) tbOpen(saved.tex != null ? { tex: saved.tex } : b64.dec(saved.data), saved.name, false); else tbRender();
 }
 $("tbFile").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; if (f) tbOpen(new Uint8Array(await f.arrayBuffer()), f.name); });
 document.querySelector(".tb-nudge").addEventListener("click", e => {
@@ -4984,6 +4997,106 @@ document.querySelector(".tb-nudge").addEventListener("click", e => {
   PL.gp.offMs = (PL.gp.offMs || 0) + +b.dataset.tbn; $("tbOff").textContent = ((PL.gp.offMs || 0) / 1000).toFixed(2).replace(".", ",") + " s";
   try { localStorage.setItem(PL.key + ":gpoff", String(PL.gp.offMs)); } catch (err) {}
   tbPos();
+});
+
+
+// ---- Tab a testo (stile Ultimate Guitar): righe delle corde → alphaTex → stessa strada dei file Guitar Pro.
+// Le tab a testo non hanno il ritmo: dentro ogni battuta la posizione dei numeri (in caratteri) si porta su 16 sedicesimi.
+// Riconosce: tasti 0–24, accordi in colonna, battute "|", h/p (legato), b (bend, anche b9 = fino al tasto 9),
+// / \ s (slide), ~ (vibrato), x (nota stoppata), nomi delle corde e accordature diverse (Drop D, DADGAD…).
+const TT_STD = { 6: [64, 59, 55, 50, 45, 40], 7: [64, 59, 55, 50, 45, 40, 35], 4: [43, 38, 33, 28], 5: [43, 38, 33, 28, 23] };
+const TT_PC = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+function ttIsLine(l) {
+  const m = l.match(/^\s*([A-Ga-g][#b]?)?\s*[|:]?(.*)$/); if (!m) return false;
+  const body = m[2]; if ((body.match(/-/g) || []).length < 4) return false;
+  return /^[-0-9xXhpbrs\/\\~()<>|.^vtPHB*=\s]+$/.test(body);
+}
+function tabTextToTex(text) {
+  const lines = text.replace(/\t/g, "    ").split(/\r?\n/);
+  const systems = []; let cur = [];
+  lines.forEach(l => { if (ttIsLine(l)) cur.push(l); else { if (cur.length) systems.push(cur); cur = []; } });
+  if (cur.length) systems.push(cur);
+  const good = systems.filter(g => g.length >= 4 && g.length <= 7);
+  if (!good.length) return { error: "Non trovo le righe delle corde (per esempio e|---0---| … E|---3---|)." };
+  const nStr = good[0].length, warn = [];
+  if (good.some(g => g.length !== nStr)) warn.push("alcuni gruppi di righe hanno un numero di corde diverso: li salto");
+  // accordatura dai nomi delle corde (dall'alto: corda 1 = la più acuta)
+  const names = good[0].map(l => (l.match(/^\s*([A-Ga-g][#b]?)\s*[|:]/) || [])[1] || null);
+  const std = TT_STD[nStr] || TT_STD[6];
+  const tuning = std.map((m, i) => {
+    const nm = names[i]; if (!nm) return m;
+    const pc = mod12(TT_PC[nm[0].toLowerCase()] + (nm[1] === "#" ? 1 : nm[1] === "b" ? -1 : 0));
+    let best = m, bd = 99; for (let c = m - 6; c <= m + 6; c++) if (mod12(c) === pc && Math.abs(c - m) < bd) { bd = Math.abs(c - m); best = c; }
+    return best;
+  });
+  const DUR = [[16, "1", 0], [12, "2", 1], [8, "2", 0], [6, "4", 1], [4, "4", 0], [3, "8", 1], [2, "8", 0], [1, "16", 0]];
+  const durTex = g => { const out = []; while (g > 0) { const d = DUR.find(x => x[0] <= g); out.push(d); g -= d[0]; } return out; };
+  const bars = []; let nNotes = 0;
+  good.filter(g => g.length === nStr).forEach(sys => {
+    const body = sys.map(l => l.replace(/^\s*([A-Ga-g][#b]?)?\s*(?=[|:])/, "").replace(/\s+$/, ""));
+    const W = Math.max(...body.map(b => b.length)), rows = body.map(b => b.padEnd(W, "-"));
+    const isBar = c => rows.filter(r => r[c] === "|" || r[c] === ":").length >= nStr - 1;
+    const cuts = []; for (let c = 0; c < W; c++) if (isBar(c)) cuts.push(c);
+    if (!cuts.length || cuts[0] > 2) cuts.unshift(-1);
+    if (cuts[cuts.length - 1] < W - 3) cuts.push(W);
+    for (let k = 0; k + 1 < cuts.length; k++) {
+      const a = cuts[k] + 1, b = cuts[k + 1], width = b - a; if (width < 3) continue;
+      const ev = new Map();                    // colonna → note
+      rows.forEach((r, si) => {
+        for (let c = a; c < b; c++) {
+          const ch = r[c];
+          if (/[0-9]/.test(ch) && !/[0-9]/.test(r[c - 1] || "")) {
+            let num = ch; if (/[0-9]/.test(r[c + 1] || "") && +(ch + r[c + 1]) <= 24) num += r[c + 1];
+            const after = r[c + num.length] || "", after2 = r.slice(c + num.length + 1, c + num.length + 3);
+            let fx = "";
+            if (after === "h" || after === "p") fx = "{h}";
+            else if (after === "b") { const t = after2.match(/^\d+/); const amt = t ? Math.max(1, Math.min(8, (+t[0] - +num) * 2)) : 4; fx = `{b (0 ${amt})}`; }
+            else if (after === "/" || after === "\\" || after === "s") fx = "{sl}";
+            else if (after === "~") fx = "{v}";
+            (ev.get(c) || ev.set(c, []).get(c)).push(`${+num}.${si + 1}${fx}`);
+          } else if (/[xX]/.test(ch)) (ev.get(c) || ev.set(c, []).get(c)).push(`x.${si + 1}`);
+        }
+      });
+      // posizioni in sedicesimi; due colonne sullo stesso sedicesimo si uniscono (una nota per corda).
+      // I 1–2 trattini prima della prima nota sono solo margine, non una pausa.
+      const c0 = Math.min(...ev.keys()), a0 = c0 - a <= 2 ? c0 : a, w0 = b - a0;
+      const slots = [];
+      [...ev.keys()].sort((x, y) => x - y).forEach(c => {
+        let sl = Math.min(15, Math.round((c - a0) / w0 * 16));
+        const last = slots[slots.length - 1];
+        if (last && sl <= last.sl) { if (sl === last.sl || last.sl >= 15) { ev.get(c).forEach(n => { const st2 = n.split(".")[1]; if (!last.notes.some(m => m.split(".")[1] === st2)) last.notes.push(n); }); return; } sl = last.sl + 1; }
+        slots.push({ sl, notes: [...ev.get(c)] });
+      });
+      if (!slots.length) { bars.push("r.1"); continue; }
+      const beats = [];
+      const rest = g => durTex(g).forEach(([, d, dot]) => beats.push(`r.${d}${dot ? "{d}" : ""}`));
+      if (slots[0].sl > 0) rest(slots[0].sl);
+      slots.forEach((x, i) => {
+        const gap = (slots[i + 1]?.sl ?? 16) - x.sl, parts = durTex(gap), notes = x.notes.map(n => n.replace(/\{[^}]*\}/, m => m));
+        nNotes += notes.length;
+        const head = notes.length > 1 ? `(${notes.join(" ")})` : notes[0].includes("{") ? notes[0].replace(/^([^{]+)(\{.*\})$/, "$1$2") : notes[0];
+        const [, d0, dot0] = parts[0];
+        beats.push(`${head}.${d0}${dot0 ? "{d}" : ""}`);
+        parts.slice(1).forEach(([, d, dot]) => beats.push(`r.${d}${dot ? "{d}" : ""}`));
+      });
+      bars.push(beats.join(" "));
+    }
+  });
+  if (!bars.length) return { error: "Ho trovato le righe delle corde, ma nessuna battuta con delle note." };
+  const NOTE = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+  const tunTex = tuning.map(m => NOTE[mod12(m)] + (Math.floor(m / 12) - 1)).join(" ");
+  const tex = `\\title "Tab incollata" \\tempo 100 \\tuning ${tunTex} .\n` + bars.join(" |\n") + " |";
+  const custom = tuning.some((m, i) => m !== std[i]);
+  return { tex, bars: bars.length, notes: nNotes, strings: nStr, tuning: custom ? tunTex.toUpperCase().replace(/[0-9]/g, "") : null, warn };
+}
+$("tbPasteBtn").addEventListener("click", () => { const o = $("tbPaste").hidden; $("tbPaste").hidden = !o; $("tbPasteBtn").setAttribute("aria-expanded", String(o)); if (o) setTimeout(() => $("tbPasteTxt").focus(), 30); });
+$("tbPasteClose").addEventListener("click", () => { $("tbPaste").hidden = true; $("tbPasteBtn").setAttribute("aria-expanded", "false"); });
+$("tbPasteGo").addEventListener("click", async () => {
+  const r = tabTextToTex($("tbPasteTxt").value || "");
+  if (r.error) { $("tbPasteMsg").textContent = r.error; return; }
+  $("tbPasteMsg").textContent = `Trovate ${r.bars} battute e ${r.notes} note su ${r.strings} corde${r.tuning ? ` · accordatura ${r.tuning}` : ""}${r.warn.length ? " · " + r.warn.join("; ") : ""}. Creo la tab…`;
+  await tbOpen({ tex: r.tex }, "Tab incollata");
+  if (PL.gp) { $("tbPaste").hidden = true; $("tbPasteBtn").setAttribute("aria-expanded", "false"); $("tbStatus").textContent = `Tab creata dal testo: ${r.bars} battute, ${r.notes} note${r.tuning ? `, accordatura ${r.tuning}` : ""}. Il ritmo è ricavato dalla spaziatura: controlla l'aggancio al brano.`; }
 });
 
 // ---- correzione a mano dell'aggancio
