@@ -1017,6 +1017,19 @@ details.more > summary::-webkit-details-marker { display: none; }
 .fx-chip.on { border-color: #339af0; background: color-mix(in srgb, #339af0 18%, transparent); }
 .tb-pin { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #339af0; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 2; }
 .tb-sel { position: absolute; border: 2px solid #339af0; border-radius: 4px; pointer-events: none; z-index: 2; }
+.vd-yt { display: flex; gap: 8px; } .vd-yt input { flex: 1; min-width: 0; }
+.vd-wrap { display: grid; gap: 10px; }
+.vd-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; touch-action: none; }
+.vd-inner { position: absolute; inset: 0; transform-origin: 0 0; }
+.vd-inner video, .vd-inner #vdYt, .vd-inner iframe { width: 100%; height: 100%; display: block; border: 0; object-fit: contain; }
+.vd-hit { position: absolute; inset: 0; cursor: grab; }
+.vd-hit:active { cursor: grabbing; }
+.vd-zoom { position: absolute; right: 10px; top: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font: 600 12px var(--font-body); pointer-events: none; }
+.vd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vd-time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 120px; } .vd-time b { color: var(--fg); }
+.vd-speed { flex-direction: row; align-items: center; gap: 6px; } .vd-speed select { width: auto; }
+.vd-play .ic { width: 20px; height: 20px; }
+@media (max-width: 760px) { .pl-modes button { font-size: 13px; padding: 9px 1px; } .vd-time { min-width: 0; } }
 </style>
 
 <div class="app">
@@ -1093,7 +1106,7 @@ details.more > summary::-webkit-details-marker { display: none; }
       </section>
 
       <div class="seg pl-modes" id="plModes" role="tablist" aria-label="Cosa fare con il brano">
-        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata <span class="badge-beta">beta</span></button><button role="tab" data-plm="voice">Canta</button>
+        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata <span class="badge-beta">beta</span></button><button role="tab" data-plm="voice">Canta</button><button role="tab" data-plm="video">Video</button>
       </div>
       <section class="panel pl-prep" id="plPrep" aria-label="Prepara il brano" hidden></section>
       <div class="pl-nowmini" id="plNowMini" hidden><span class="label">Adesso</span><b id="nmCur">–</b><span class="label">Poi</span><b id="nmNext">–</b><small id="nmIn"></small></div>
@@ -1227,6 +1240,37 @@ details.more > summary::-webkit-details-marker { display: none; }
           </div>
           <p class="hint help">Tocca una nota (a brano fermo) per sentirla e correggerla; tocca un punto vuoto per spostare il brano lì. Nota piena con il bordo: presa; nota sbiadita: mancata. Se la tua linea arriva sempre in ritardo rispetto alle note, aumenta il ritardo del microfono.</p>
           <p class="hint">Vuoi prima scaldare la voce? <button class="btn linkish" type="button" id="voToSing">Esercizio di intonazione</button></p>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Video" id="plVideo" data-plm-of="video">
+        <div class="card-head"><h2>Video</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
+          <div class="grp"><label class="btn file-btn" id="vdFileBtn">Apri un video<input type="file" id="vdFile" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v"></label></div></div>
+        <form class="vd-yt" id="vdYtForm"><input type="url" id="vdYtUrl" placeholder="Link di YouTube (youtube.com/watch?v=… o youtu.be/…)" autocomplete="off"><button class="btn" type="submit">Apri</button></form>
+        <p class="hint" id="vdHint">Apri un video dal dispositivo o incolla un link di YouTube: rallenta, vai avanti un fotogramma alla volta e ingrandisci la mano sul manico per vedere gli accordi.</p>
+        <p class="hint help">Zoom: rotella del mouse, pizzico con due dita o i pulsanti − +; trascina per spostarti, doppio tocco per ingrandire o tornare indietro. A video fermo, le frecce ← → vanno di un fotogramma. "Segui il brano" (solo per i video dal dispositivo) fa andare il video insieme al brano aperto: velocità, salti e tratto da ripetere del lettore valgono anche per il video. Da YouTube si può guardare, rallentare e ingrandire, ma le regole di YouTube non permettono di leggerne l'audio o le immagini, quindi niente riconoscimento degli accordi dal video.</p>
+        <div class="vd-wrap" id="vdWrap" hidden>
+          <div class="vd-stage" id="vdStage">
+            <div class="vd-inner" id="vdInner"><video id="vdEl" playsinline preload="auto" hidden></video><div id="vdYt" hidden></div></div>
+            <div class="vd-hit" id="vdHit" aria-label="Video: trascina per spostarti, rotella o pizzico per ingrandire"></div>
+            <span class="vd-zoom" id="vdZoomLbl" hidden></span>
+          </div>
+          <div class="vd-bar">
+            <span class="vd-time"><b id="vdCur">0:00,0</b> / <span id="vdDur">0:00</span></span>
+            <div class="grp" role="group" aria-label="Riproduzione">
+              <button class="btn icon" type="button" id="vdPrev" aria-label="Fotogramma precedente"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14"/><path d="M18 6l-8 6 8 6z" fill="currentColor"/></svg></button>
+              <button class="btn icon vd-play" type="button" id="vdPlay" aria-label="Riproduci"></button>
+              <button class="btn icon" type="button" id="vdNext" aria-label="Fotogramma successivo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14"/><path d="M6 6l8 6-8 6z" fill="currentColor"/></svg></button>
+            </div>
+            <label class="field vd-speed"><span class="label">Velocità</span><select id="vdRate"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="0.75">0,75×</option><option value="1" selected>1×</option></select></label>
+            <div class="grp" role="group" aria-label="Zoom"><button class="btn icon" type="button" id="vdZoomOut" aria-label="Riduci">−</button><button class="btn" type="button" id="vdZoomReset">1×</button><button class="btn icon" type="button" id="vdZoomIn" aria-label="Ingrandisci">+</button></div>
+            <div class="grp" role="group" aria-label="Tratto da ripetere"><button class="btn" type="button" id="vdA">A</button><button class="btn" type="button" id="vdB">B</button><button class="btn icon" type="button" id="vdABx" aria-label="Togli il tratto" hidden>✕</button></div>
+            <label class="check"><input type="checkbox" id="vdMirror"> Specchio</label>
+            <label class="check" id="vdFollowF" hidden><input type="checkbox" id="vdFollow"> Segui il brano</label>
+            <button class="btn icon" type="button" id="vdClose" aria-label="Chiudi il video">✕</button>
+          </div>
+          <div class="field tb-nudge" id="vdOffF" hidden><span class="label">Video rispetto al brano</span>
+            <div class="grp"><button class="btn icon" type="button" data-vdo="-100" aria-label="Video prima di un decimo">−</button><output id="vdOff">0,0 s</output><button class="btn icon" type="button" data-vdo="100" aria-label="Video dopo di un decimo">+</button></div></div>
         </div>
       </section>
 
@@ -4325,7 +4369,7 @@ async function libRender() {
       .filter(Boolean).map(p => `<span>${esc(p)}</span>`).join("");
     const lk = "pl:" + m.id, has = k => { try { return !!localStorage.getItem(lk + k); } catch (e) { return false; } };
     const chStr = (() => { try { return localStorage.getItem(lk + ":ch") || ""; } catch (e) { return ""; } })();
-    const tags = [m.chords || chStr ? "accordi" : "", chStr.includes('"fromSong"') ? "pennate" : "", has(":gp") ? "tab" : "", has(":vo") ? "voce" : "", m.base ? "base" : ""].filter(Boolean);
+    const tags = [m.chords || chStr ? "accordi" : "", chStr.includes('"fromSong"') ? "pennate" : "", has(":gp") ? "tab" : "", has(":vo") ? "voce" : "", m.base ? "base" : "", m.video || has(":yt") ? "video" : ""].filter(Boolean);
     const tagHtml = tags.length ? `<span class="lib-tags">${tags.map(t => `<span class="lib-tag">${t}</span>`).join("")}</span>` : "";
     const del = LIB.confirmDel === m.id ? `<button class="btn danger" data-act="del-ok">Elimina?</button>`
       : `<button class="btn" data-act="del" aria-label="Elimina ${esc(m.name)}">🗑<span> Elimina</span></button>`;
@@ -4433,6 +4477,7 @@ function plLoad(file, meta) {
     PL.audio.addEventListener("play", () => { tbPlayState(true); stmApply(); if (VO.notes && !VO.on) { cancelAnimationFrame(VO.raf); VO.raf = requestAnimationFrame(voLoop); } });
     PL.audio.addEventListener("seeked", () => { tbPos(); stmSync(true); });
     PL.audio.addEventListener("ratechange", () => stmSync(true));
+    ["play", "pause", "seeked"].forEach(ev => PL.audio.addEventListener(ev, () => { if (VD.kind === "file" && $("vdFollow").checked) vdLoop(); }));
   }
   const a = PL.audio;
   a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true;
@@ -4441,7 +4486,7 @@ function plLoad(file, meta) {
   try { PL.sections = JSON.parse(localStorage.getItem(PL.key) || "[]"); } catch (e) { PL.sections = []; }
   PL.buf = null; PL.chords = null; PL.chSel = -1; PL.chIdx = -2; PL.busy = false; PL.chHist = []; PL.chScope = "one";
   try { PL.chords = JSON.parse(localStorage.getItem(PL.key + ":ch") || "null"); } catch (e) { PL.chords = null; }
-  stmReset(); PL.chProgP = 0; renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore(); plModeApply(); plPrepRender(true);
+  stmReset(); PL.chProgP = 0; renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore(); vdRestore(); plModeApply(); plPrepRender(true);
   file.arrayBuffer().then(buf => ac().decodeAudioData(buf)).then(buf => { PL.buf = buf; PL.peaks = plPeaks(buf, 2000); plDraw(); plChordsRender(); if (PL.gp) { tbRender(); tbSync(); } plAutoPrep(); })
     .catch(() => { PL.peaks = null; plDraw(); plChordsRender(); });
 }
@@ -6561,6 +6606,176 @@ $("plPrep").addEventListener("click", e => {
   }
   if (li && li.classList.contains("pp-ok")) { st.plMode = li.dataset.pp; save(); plModeApply(); plPrepRender(true); }
 });
+
+
+// ===================== Video: dal dispositivo o da YouTube, rallentato, fotogramma per fotogramma, ingrandito =====================
+// Un solo lettore con due motori: <video> per i file (controllo completo, può seguire il brano) e il lettore ufficiale
+// di YouTube (iframe, dominio youtube-nocookie) per i link. Lo zoom sposta e ingrandisce la cornice: va bene per entrambi.
+var VD = { kind: null, yt: null, ytReady: false, url: null, z: 1, tx: 0, ty: 0, A: null, B: null, fps: 30, raf: 0, ptrs: new Map(), pinch: null, drag: null };
+const vdEl = $("vdEl");
+const vdT = () => VD.kind === "file" ? vdEl.currentTime : VD.kind === "yt" && VD.ytReady ? VD.yt.getCurrentTime() : 0;
+const vdDur = () => VD.kind === "file" ? (vdEl.duration || 0) : VD.kind === "yt" && VD.ytReady ? VD.yt.getDuration() : 0;
+const vdPaused = () => VD.kind === "file" ? vdEl.paused : VD.kind === "yt" && VD.ytReady ? VD.yt.getPlayerState() !== 1 : true;
+function vdSeek(t) {
+  t = Math.max(0, Math.min(vdDur() || 1e9, t));
+  if (VD.kind === "file") vdEl.currentTime = t; else if (VD.kind === "yt" && VD.ytReady) VD.yt.seekTo(t, true);
+  vdUi();
+}
+function vdPlayPause(force) {
+  const play = force != null ? force : vdPaused();
+  if (VD.kind === "file") { if (play) vdEl.play().catch(() => {}); else vdEl.pause(); }
+  else if (VD.kind === "yt" && VD.ytReady) { if (play) VD.yt.playVideo(); else VD.yt.pauseVideo(); }
+  vdLoop();
+}
+function vdStep(dir) {                                   // un fotogramma (a video fermo)
+  vdPlayPause(false); vdSeek(vdT() + dir / (VD.fps || 30));
+}
+function vdUi() {
+  const has = !!VD.kind; $("vdWrap").hidden = !has;
+  if (!has) return;
+  const fol = VD.kind === "file" && $("vdFollow").checked;
+  $("vdCur").textContent = fmtT2(vdT()); $("vdDur").textContent = fmtT(vdDur());
+  const ic = vdPaused() ? "play" : "pause"; if ($("vdPlay").dataset.ic !== ic) { $("vdPlay").dataset.ic = ic; $("vdPlay").innerHTML = ic === "play" ? PLAY_IC : PAUSE_IC; $("vdPlay").setAttribute("aria-label", ic === "play" ? "Riproduci" : "Pausa"); }
+  ["vdPrev", "vdPlay", "vdNext", "vdRate", "vdA", "vdB"].forEach(id => { $(id).disabled = fol; });
+  $("vdA").textContent = VD.A != null ? `A ${fmtT2(VD.A)}` : "A"; $("vdB").textContent = VD.B != null ? `B ${fmtT2(VD.B)}` : "B";
+  $("vdABx").hidden = VD.A == null && VD.B == null;
+  $("vdFollowF").hidden = VD.kind !== "file" || !PL.audio; $("vdOffF").hidden = !fol;
+  $("vdOff").textContent = ((VD.off || 0) / 1000).toFixed(1).replace(".", ",") + " s";
+  $("vdZoomReset").textContent = (Math.round(VD.z * 10) / 10).toString().replace(".", ",") + "×";
+}
+// ciclo di aggiornamento: tempo, tratto A–B, e (se segue il brano) aggancio al lettore
+function vdLoop() {
+  cancelAnimationFrame(VD.raf);
+  const tick = () => {
+    if (!VD.kind) return;
+    const fol = VD.kind === "file" && $("vdFollow").checked && PL.audio;
+    if (fol) {
+      const a = PL.audio, target = a.currentTime + (VD.off || 0) / 1000;
+      vdEl.playbackRate = a.playbackRate;
+      if (a.paused) { if (!vdEl.paused) vdEl.pause(); if (Math.abs(vdEl.currentTime - target) > 0.04) vdEl.currentTime = Math.max(0, target); }
+      else { if (vdEl.paused) vdEl.play().catch(() => {}); if (Math.abs(vdEl.currentTime - target) > 0.25) vdEl.currentTime = Math.max(0, target); }
+    } else if (VD.A != null && VD.B != null && !vdPaused() && vdT() >= VD.B) vdSeek(VD.A);
+    vdUi();
+    if (!vdPaused() || fol) VD.raf = requestAnimationFrame(tick); else VD.raf = 0;
+  };
+  VD.raf = requestAnimationFrame(tick);
+}
+// --- zoom e spostamento
+function vdApply() {
+  const st2 = $("vdStage"), W = st2.clientWidth, H = st2.clientHeight;
+  VD.z = Math.max(1, Math.min(6, VD.z));
+  VD.tx = Math.min(0, Math.max(W - W * VD.z, VD.tx)); VD.ty = Math.min(0, Math.max(H - H * VD.z, VD.ty));
+  $("vdInner").style.transform = `translate(${VD.tx}px, ${VD.ty}px) scale(${VD.z})`;
+  [vdEl, $("vdYt")].forEach(el => el.style.transform = $("vdMirror").checked ? "scaleX(-1)" : "");
+  $("vdZoomLbl").hidden = VD.z <= 1.01; $("vdZoomLbl").textContent = (Math.round(VD.z * 10) / 10).toString().replace(".", ",") + "×";
+  vdUi();
+}
+function vdZoomAt(f, cx, cy) {                           // f = fattore, (cx, cy) = punto fermo nel riquadro
+  const z0 = VD.z, z1 = Math.max(1, Math.min(6, z0 * f)); if (z1 === z0) return;
+  VD.tx = cx - (cx - VD.tx) * z1 / z0; VD.ty = cy - (cy - VD.ty) * z1 / z0; VD.z = z1; vdApply();
+}
+const vdHit = $("vdHit"), vdPt = e => { const r = vdHit.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+vdHit.addEventListener("wheel", e => { e.preventDefault(); const [x, y] = vdPt(e); vdZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, x, y); }, { passive: false });
+vdHit.addEventListener("pointerdown", e => {
+  vdHit.setPointerCapture(e.pointerId); VD.ptrs.set(e.pointerId, vdPt(e));
+  if (VD.ptrs.size === 2) { const [a, b] = [...VD.ptrs.values()]; VD.pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: VD.z }; VD.drag = null; }
+  else VD.drag = { p: vdPt(e), tx: VD.tx, ty: VD.ty, moved: false, t: performance.now() };
+});
+vdHit.addEventListener("pointermove", e => {
+  if (!VD.ptrs.has(e.pointerId)) return; VD.ptrs.set(e.pointerId, vdPt(e));
+  if (VD.pinch && VD.ptrs.size === 2) { const [a, b] = [...VD.ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); vdZoomAt(VD.pinch.z * d / VD.pinch.d / VD.z, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); return; }
+  if (VD.drag) { const p2 = vdPt(e), dx = p2[0] - VD.drag.p[0], dy = p2[1] - VD.drag.p[1]; if (Math.hypot(dx, dy) > 4) VD.drag.moved = true; VD.tx = VD.drag.tx + dx; VD.ty = VD.drag.ty + dy; vdApply(); }
+});
+const vdUp = e => {
+  const d = VD.drag; VD.ptrs.delete(e.pointerId); if (VD.ptrs.size < 2) VD.pinch = null;
+  if (d && !d.moved && e.type === "pointerup") {          // tocco: play/pausa; doppio tocco: zoom
+    const now = performance.now(), [x, y] = vdPt(e);
+    if (now - (VD.lastTap || 0) < 320) { clearTimeout(VD.tapT); VD.lastTap = 0; if (VD.z > 1.05) { VD.z = 1; VD.tx = VD.ty = 0; vdApply(); } else vdZoomAt(2.5, x, y); }
+    else { VD.lastTap = now; VD.tapT = setTimeout(() => { if (!(VD.kind === "file" && $("vdFollow").checked)) vdPlayPause(); }, 330); }
+  }
+  VD.drag = null;
+};
+vdHit.addEventListener("pointerup", vdUp); vdHit.addEventListener("pointercancel", vdUp);
+$("vdZoomIn").addEventListener("click", () => vdZoomAt(1.4, $("vdStage").clientWidth / 2, $("vdStage").clientHeight / 2));
+$("vdZoomOut").addEventListener("click", () => vdZoomAt(1 / 1.4, $("vdStage").clientWidth / 2, $("vdStage").clientHeight / 2));
+$("vdZoomReset").addEventListener("click", () => { VD.z = 1; VD.tx = VD.ty = 0; vdApply(); });
+$("vdMirror").addEventListener("change", vdApply);
+// --- comandi
+$("vdPlay").addEventListener("click", () => vdPlayPause());
+$("vdPrev").addEventListener("click", () => vdStep(-1));
+$("vdNext").addEventListener("click", () => vdStep(1));
+$("vdRate").addEventListener("change", e => { const r = +e.target.value; if (VD.kind === "file") vdEl.playbackRate = r; else if (VD.ytReady) VD.yt.setPlaybackRate(r); });
+$("vdA").addEventListener("click", () => { VD.A = vdT(); if (VD.B != null && VD.B <= VD.A) VD.B = null; vdUi(); });
+$("vdB").addEventListener("click", () => { const t = vdT(); if (VD.A != null && t > VD.A) { VD.B = t; vdSeek(VD.A); } vdUi(); });
+$("vdABx").addEventListener("click", () => { VD.A = VD.B = null; vdUi(); });
+$("vdFollow").addEventListener("change", e => { if (e.target.checked) { vdEl.muted = true; VD.A = VD.B = null; } else vdEl.muted = false; vdSave(); vdLoop(); vdUi(); });
+document.querySelector("#vdOffF").addEventListener("click", e => { const b = e.target.closest("[data-vdo]"); if (!b) return; VD.off = (VD.off || 0) + +b.dataset.vdo; vdSave(); vdUi(); });
+document.addEventListener("keydown", e => {
+  if (st.tab !== "player" || st.plMode !== "video" || !VD.kind || /input|textarea|select/i.test(document.activeElement?.tagName || "")) return;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); vdStep(e.key === "ArrowLeft" ? -1 : 1); }
+});
+// fotogrammi al secondo del file: li misuro mentre suona, se il browser lo permette
+function vdMeasureFps() {
+  if (!vdEl.requestVideoFrameCallback) return; let last = null, n = 0, acc = 0;
+  const cb = (now, md) => { if (last != null && md.mediaTime > last) { const d = md.mediaTime - last; if (d > 0.005 && d < 0.1) { acc += d; n++; } } last = md.mediaTime; if (n < 30) vdEl.requestVideoFrameCallback(cb); else VD.fps = Math.round(n / acc); };
+  vdEl.requestVideoFrameCallback(cb);
+}
+vdEl.addEventListener("play", () => { vdMeasureFps(); vdLoop(); });
+vdEl.addEventListener("pause", () => vdUi());
+vdEl.addEventListener("loadedmetadata", () => { vdUi(); vdApply(); });
+// --- apertura
+function vdReset() {
+  vdEl.pause(); vdEl.hidden = true; if (VD.url) URL.revokeObjectURL(VD.url); VD.url = null; vdEl.removeAttribute("src"); vdEl.load();
+  if (VD.yt) { try { VD.yt.destroy(); } catch (e) {} VD.yt = null; } VD.ytReady = false; $("vdYt").hidden = true; $("vdYt").innerHTML = "";
+  VD.kind = null; VD.A = VD.B = null; VD.z = 1; VD.tx = VD.ty = 0; VD.off = 0; $("vdFollow").checked = false; vdEl.muted = false; vdApply();
+}
+function vdOpenFile(blob, persist = true) {
+  vdReset(); VD.kind = "file"; VD.url = URL.createObjectURL(blob); vdEl.src = VD.url; vdEl.hidden = false; $("vdRate").value = "1";
+  if (persist && PL.libId) {
+    if (blob.size < 600e6) libReq("audio", "readwrite", s2 => s2.put(blob, PL.libId + ":video")).then(() => libUpdate(PL.libId, { video: "file" })).catch(() => { $("vdHint").textContent = "Il video è troppo grande per restare salvato con il brano: alla prossima apertura andrà scelto di nuovo."; });
+    try { localStorage.removeItem(PL.key + ":yt"); } catch (e) {}
+  }
+  vdUi(); vdApply();
+}
+function ytId(u) {
+  const m = String(u).trim().match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/) || String(u).trim().match(/^([\w-]{11})$/);
+  return m ? m[1] : null;
+}
+let ytApi = null;
+function ytLoad() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  return ytApi ||= new Promise((res, rej) => { window.onYouTubeIframeAPIReady = () => res(window.YT); const sc = document.createElement("script"); sc.src = "https://www.youtube.com/iframe_api"; sc.onerror = () => { ytApi = null; rej(new Error("yt")); }; document.head.appendChild(sc); });
+}
+async function vdOpenYt(url, persist = true) {
+  const id = ytId(url); if (!id) { $("vdHint").textContent = "Non riconosco il link: deve essere un video di YouTube (youtube.com/watch?v=… o youtu.be/…)."; return; }
+  const start = +((String(url).match(/[?&]t=(\d+)/) || [])[1] || 0);
+  vdReset(); VD.kind = "yt"; $("vdYt").hidden = false; $("vdYt").innerHTML = '<div id="vdYtPlayer"></div>';
+  vdUi(); vdApply();
+  try {
+    const YT = await ytLoad();
+    VD.yt = new YT.Player("vdYtPlayer", { host: "https://www.youtube-nocookie.com", videoId: id, width: "100%", height: "100%",
+      playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1, start, iv_load_policy: 3 },
+      events: { onReady: () => { VD.ytReady = true; vdUi(); }, onStateChange: () => { vdLoop(); vdUi(); }, onError: () => { $("vdHint").textContent = "Questo video di YouTube non si può incorporare (lo ha bloccato chi l'ha pubblicato) o non esiste."; } } });
+    if (persist) { try { localStorage.setItem(PL.key + ":yt", id); } catch (e) {} if (PL.libId) { libReq("audio", "readwrite", s2 => s2.delete(PL.libId + ":video")).catch(() => {}); libUpdate(PL.libId, { video: "yt" }); } }
+  } catch (e) { $("vdHint").textContent = "Non riesco a caricare il lettore di YouTube: serve la connessione (e qui potrebbe essere bloccato: prova dalla pagina GitHub)."; }
+}
+$("vdFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) vdOpenFile(f); });
+$("vdYtForm").addEventListener("submit", e => { e.preventDefault(); vdOpenYt($("vdYtUrl").value); });
+$("vdClose").addEventListener("click", () => {
+  vdReset(); vdUi(); $("vdYtUrl").value = "";
+  try { localStorage.removeItem(PL.key + ":yt"); localStorage.removeItem(PL.key + ":vdopt"); } catch (e) {}
+  if (PL.libId) { libReq("audio", "readwrite", s2 => s2.delete(PL.libId + ":video")).catch(() => {}); libUpdate(PL.libId, { video: null }); }
+});
+function vdSave() { try { localStorage.setItem(PL.key + ":vdopt", JSON.stringify({ follow: $("vdFollow").checked, off: VD.off || 0 })); } catch (e) {} }
+// al cambio di brano: si riapre il suo video (file salvato o link)
+async function vdRestore() {
+  vdReset(); vdUi(); if (!PL.libId) return;
+  const key = PL.key; let yt = null, opt = null;
+  try { yt = localStorage.getItem(key + ":yt"); opt = JSON.parse(localStorage.getItem(key + ":vdopt") || "null"); } catch (e) {}
+  if (yt) { $("vdYtUrl").value = "https://youtu.be/" + yt; vdOpenYt(yt, false); return; }
+  try { const b = await libReq("audio", "readonly", s2 => s2.get(PL.libId + ":video")); if (b && PL.key === key) { vdOpenFile(b, false); if (opt) { VD.off = opt.off || 0; $("vdFollow").checked = !!opt.follow; vdEl.muted = !!opt.follow; vdLoop(); } } } catch (e) {}
+}
+new ResizeObserver(() => { if (VD.kind) vdApply(); }).observe($("vdStage"));
 
 // ===================== Riconoscimento degli accordi del brano =====================
 // Tutto sul dispositivo, nessuna libreria esterna:
