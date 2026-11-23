@@ -1029,6 +1029,12 @@ details.more > summary::-webkit-details-marker { display: none; }
 .vd-time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 120px; } .vd-time b { color: var(--fg); }
 .vd-speed { flex-direction: row; align-items: center; gap: 6px; } .vd-speed select { width: auto; }
 .vd-play .ic { width: 20px; height: 20px; }
+.vd-seek { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 4px 0 6px; background: transparent; cursor: pointer; touch-action: none; }
+.vd-seek::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--vd-track, #3a3f45); }
+.vd-seek::-moz-range-track { height: 6px; border-radius: 3px; background: var(--vd-track, #3a3f45); }
+.vd-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; background: #f1f3f5; border: 0; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.vd-seek::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #f1f3f5; border: 0; }
+.vd-seek:disabled { opacity: .5; cursor: default; }
 @media (max-width: 760px) { .pl-modes button { font-size: 13px; padding: 9px 1px; } .vd-time { min-width: 0; } }
 </style>
 
@@ -1255,6 +1261,7 @@ details.more > summary::-webkit-details-marker { display: none; }
             <div class="vd-hit" id="vdHit" aria-label="Video: trascina per spostarti, rotella o pizzico per ingrandire"></div>
             <span class="vd-zoom" id="vdZoomLbl" hidden></span>
           </div>
+          <input type="range" id="vdSeek" class="vd-seek" min="0" max="1000" step="1" value="0" aria-label="Posizione nel video">
           <div class="vd-bar">
             <span class="vd-time"><b id="vdCur">0:00,0</b> / <span id="vdDur">0:00</span></span>
             <div class="grp" role="group" aria-label="Riproduzione">
@@ -6618,11 +6625,13 @@ const vdDur = () => VD.kind === "file" ? (vdEl.duration || 0) : VD.kind === "yt"
 const vdPaused = () => VD.kind === "file" ? vdEl.paused : VD.kind === "yt" && VD.ytReady ? VD.yt.getPlayerState() !== 1 : true;
 function vdSeek(t) {
   t = Math.max(0, Math.min(vdDur() || 1e9, t));
-  if (VD.kind === "file") vdEl.currentTime = t; else if (VD.kind === "yt" && VD.ytReady) VD.yt.seekTo(t, true);
+  if (VD.kind === "file") vdEl.currentTime = t;
+  else if (VD.kind === "yt" && VD.ytReady) vdYtSeek(t, true);
   vdUi();
 }
 function vdPlayPause(force) {
   const play = force != null ? force : vdPaused();
+  VD.ytHold = 0;                                         // hai premuto tu: niente pausa automatica dopo un salto
   if (VD.kind === "file") { if (play) vdEl.play().catch(() => {}); else vdEl.pause(); }
   else if (VD.kind === "yt" && VD.ytReady) { if (play) VD.yt.playVideo(); else VD.yt.pauseVideo(); }
   vdLoop();
@@ -6630,11 +6639,36 @@ function vdPlayPause(force) {
 function vdStep(dir) {                                   // un fotogramma (a video fermo)
   vdPlayPause(false); vdSeek(vdT() + dir / (VD.fps || 30));
 }
+// barra di scorrimento: mentre trascini mostro il tempo e salto (su YouTube senza caricare ogni punto), al rilascio salto preciso
+$("vdSeek").addEventListener("input", e => {
+  const t = e.target.value / 1000 * (vdDur() || 0); VD.seeking = t;
+  if (VD.kind === "file") vdEl.currentTime = t; else if (VD.kind === "yt" && VD.ytReady) vdYtSeek(t, false);
+  vdUi();
+});
+// YouTube, se il video non è mai partito, parte da solo quando salti: se era in pausa lo rimetto in pausa
+function vdYtSeek(t, ahead) {
+  const st0 = VD.yt.getPlayerState?.(), wasPaused = VD.seekPaused ?? (st0 !== 1 && st0 !== 3);
+  VD.yt.seekTo(t, ahead);
+  if (!ahead) { VD.seekPaused = wasPaused; return; }
+  VD.seekPaused = undefined;
+  if (!wasPaused) return;
+  VD.ytHold = Date.now() + 6000;                         // la pausa la rimette onStateChange appena YouTube riparte
+  if (VD.yt.getPlayerState?.() === 1) VD.yt.pauseVideo();
+}
+$("vdSeek").addEventListener("change", e => { const t = e.target.value / 1000 * (vdDur() || 0); VD.seeking = null; vdSeek(t); });
 function vdUi() {
   const has = !!VD.kind; $("vdWrap").hidden = !has;
   if (!has) return;
   const fol = VD.kind === "file" && $("vdFollow").checked;
-  $("vdCur").textContent = fmtT2(vdT()); $("vdDur").textContent = fmtT(vdDur());
+  $("vdCur").textContent = fmtT2(VD.seeking != null ? VD.seeking : vdT()); $("vdDur").textContent = fmtT(vdDur());
+  { // barra di scorrimento: parte già vista in chiaro, tratto A–B in rosso
+    const sk = $("vdSeek"), d = vdDur() || 0; sk.disabled = fol || !d;
+    if (VD.seeking == null && d) sk.value = Math.round(vdT() / d * 1000);
+    const p = v => (d ? Math.max(0, Math.min(100, v / d * 100)) : 0), cur = sk.value / 10, base = "#3a3f45", done = "#8a9096";
+    let bg = `linear-gradient(90deg, ${done} 0 ${cur}%, ${base} ${cur}% 100%)`;
+    if (VD.A != null && VD.B != null) bg = `linear-gradient(90deg, transparent 0 ${p(VD.A)}%, rgba(224,49,49,.75) ${p(VD.A)}% ${p(VD.B)}%, transparent ${p(VD.B)}% 100%), ` + bg;
+    if (sk.dataset.bg !== bg) { sk.dataset.bg = bg; sk.style.setProperty("--vd-track", bg); }
+  }
   const ic = vdPaused() ? "play" : "pause"; if ($("vdPlay").dataset.ic !== ic) { $("vdPlay").dataset.ic = ic; $("vdPlay").innerHTML = ic === "play" ? PLAY_IC : PAUSE_IC; $("vdPlay").setAttribute("aria-label", ic === "play" ? "Riproduci" : "Pausa"); }
   ["vdPrev", "vdPlay", "vdNext", "vdRate", "vdA", "vdB"].forEach(id => { $(id).disabled = fol; });
   $("vdA").textContent = VD.A != null ? `A ${fmtT2(VD.A)}` : "A"; $("vdB").textContent = VD.B != null ? `B ${fmtT2(VD.B)}` : "B";
@@ -6755,7 +6789,7 @@ async function vdOpenYt(url, persist = true) {
     const YT = await ytLoad();
     VD.yt = new YT.Player("vdYtPlayer", { host: "https://www.youtube-nocookie.com", videoId: id, width: "100%", height: "100%",
       playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1, start, iv_load_policy: 3 },
-      events: { onReady: () => { VD.ytReady = true; vdUi(); }, onStateChange: () => { vdLoop(); vdUi(); }, onError: () => { $("vdHint").textContent = "Questo video di YouTube non si può incorporare (lo ha bloccato chi l'ha pubblicato) o non esiste."; } } });
+      events: { onReady: () => { VD.ytReady = true; vdUi(); }, onStateChange: e => { if (e.data === 1 && Date.now() < (VD.ytHold || 0)) VD.yt.pauseVideo(); vdLoop(); vdUi(); }, onError: () => { $("vdHint").textContent = "Questo video di YouTube non si può incorporare (lo ha bloccato chi l'ha pubblicato) o non esiste."; } } });
     if (persist) { try { localStorage.setItem(PL.key + ":yt", id); } catch (e) {} if (PL.libId) { libReq("audio", "readwrite", s2 => s2.delete(PL.libId + ":video")).catch(() => {}); libUpdate(PL.libId, { video: "yt" }); } }
   } catch (e) { $("vdHint").textContent = "Non riesco a caricare il lettore di YouTube: serve la connessione (e qui potrebbe essere bloccato: prova dalla pagina GitHub)."; }
 }
