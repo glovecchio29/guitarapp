@@ -1006,6 +1006,17 @@ details.more > summary::-webkit-details-marker { display: none; }
 .tb-hl { position: absolute; background: rgba(252, 196, 25, .22); border-radius: 4px; pointer-events: none; transition: left .12s, top .12s, width .12s, height .12s; }
 .tb-cur { position: absolute; width: 2px; background: #e03131; pointer-events: none; border-radius: 1px; }
 #tbViewSeg button { padding: 6px 10px; }
+.tb-fixpanel { display: grid; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid #339af0; background: var(--surface-2); }
+.fx-head { display: grid; gap: 2px; } .fx-head b { font-size: 15px; } .fx-head .hint { margin: 0; }
+.fx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fx-now { min-width: 140px; font-size: 16px; } .fx-now small { opacity: .7; font-weight: 500; margin-left: 4px; }
+.fx-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .fx-list:empty { display: none; }
+.fx-chip { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.fx-chip button { background: none; border: 0; color: var(--fg); font: inherit; font-size: 13px; padding: 4px 10px; cursor: pointer; }
+.fx-chip button + button { border-left: 1px solid var(--line); padding: 4px 8px; color: var(--muted); }
+.fx-chip.on { border-color: #339af0; background: color-mix(in srgb, #339af0 18%, transparent); }
+.tb-pin { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #339af0; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 2; }
+.tb-sel { position: absolute; border: 2px solid #339af0; border-radius: 4px; pointer-events: none; z-index: 2; }
 </style>
 
 <div class="app">
@@ -1156,7 +1167,17 @@ details.more > summary::-webkit-details-marker { display: none; }
           <button class="btn icon" id="tbClose" aria-label="Togli il file">✕</button>
         </div>
         <p class="hint" id="tbStatus"></p>
-        <p class="hint tb-fixhint" id="tbFixHint" hidden>Fai suonare il brano e, quando senti iniziare una battuta, toccala nella tab: quella battuta resta agganciata a quel momento e l'app riallinea tutto il resto. Puoi farlo in più punti; poi premi di nuovo "Correggi l'aggancio" per finire.</p>
+        <div class="tb-fixpanel" id="tbFixHint" hidden>
+          <div class="fx-head"><b id="fxTitle">Tocca nella tab la battuta che parte nel punto sbagliato</b><span class="hint" id="fxInfo">Oppure fai suonare il brano e premi "Adesso!" quando senti iniziare una battuta: si aggancia quella più vicina.</span></div>
+          <div class="fx-row">
+            <button class="btn" type="button" id="fxListen" disabled>▶ Ascolta da qui</button>
+            <button class="btn primary fx-now" type="button" id="fxNow">Adesso! <small>Invio</small></button>
+            <div class="grp fx-nudge" role="group" aria-label="Sposta l'inizio della battuta"><button class="btn" type="button" data-fxn="-100" disabled>−0,1 s</button><button class="btn" type="button" data-fxn="100" disabled>+0,1 s</button></div>
+            <button class="btn" type="button" id="fxDel" hidden>Togli questa correzione</button>
+            <button class="btn" type="button" id="fxDone">Fatto</button>
+          </div>
+          <div class="fx-list" id="fxList"></div>
+        </div>
         <div class="tb-view" id="tbView" hidden></div>
         <div class="tb-pdf" id="tbPdf" hidden aria-label="PDF originale: tocca una battuta per andare a quel punto del brano"></div>
       </section>
@@ -4470,6 +4491,13 @@ function plDraw() {
   }
   [[PL.A, "A"], [PL.B, "B"]].forEach(([s, l]) => { if (s == null) return; const x = xOf(s); g.fillStyle = col("--accent"); g.fillRect(x - 1, 0, 2, h); g.font = "700 12px sans-serif"; g.fillText(l, Math.min(x + 4, w - 12), 14); });
   if (dur) { g.fillStyle = col("--fg"); g.fillRect(xOf(t) - 1, 0, 2, h); }
+  const G = PL.gp;
+  if (dur && G?.fixing) {
+    const off = (G.offMs || 0) / 1000;
+    (G.anchors || []).forEach(a => { const x = xOf(a.ms / 1000 + off); g.fillStyle = "#339af0"; g.beginPath(); g.moveTo(x - 5, 0); g.lineTo(x + 5, 0); g.lineTo(x, 8); g.closePath(); g.fill(); });
+    const S = G.fixSel != null ? G.sync?.[G.fixSel] : null;
+    if (S) { const x = xOf(S.ms / 1000 + off); g.strokeStyle = "#339af0"; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.setLineDash([]); }
+  }
 }
 function plUpdate() {
   const a = PL.audio; if (!a) return;
@@ -4804,7 +4832,7 @@ function tbRender() {
   }
   if (!g.hooked) {
     g.hooked = true; g.api.scoreLoaded.on(() => setTimeout(tbSync, 50)); g.api.renderFinished.on(() => tbHookPlayer());
-    g.api.beatMouseDown.on(beat => { if (!beat?.voice?.bar) return; if (PL.gp?.fixing) tbAnchorAt(beat.voice.bar.index); else tbSeekBeat(beat); });
+    g.api.beatMouseDown.on(beat => { if (!beat?.voice?.bar) return; if (PL.gp?.fixing) tbFixSelect(beat.voice.bar.index); else tbSeekBeat(beat); });
   }
   tbFixUi(); tbAutoUi();
   g.api.renderScore(sc, [g.track]);
@@ -4973,6 +5001,18 @@ async function tbSync() {
     g.syncBy = "durata";
     const tot = totS, r = dur / tot;
     sync = tl.map(o => ({ bar: o.bar, occ: o.occ, ms: o.t * r * 1000 }));
+  }
+  // le battute corrette a mano partono esattamente dove le hai messe (l'allineamento lavora a quarti di secondo);
+  // tra due correzioni le battute si ridistribuiscono in proporzione, così niente salti
+  const anc = (g.anchors || []).filter(a => sync[a.k]).sort((p2, q2) => p2.k - q2.k);
+  if (anc.length) {
+    const orig = sync.map(x => x.ms);
+    anc.forEach(a => { sync[a.k].ms = a.ms; });
+    for (let i = 0; i < anc.length; i++) {
+      const A = anc[i], B = anc[i + 1];
+      if (B) { const o0 = orig[A.k], o1 = orig[B.k]; for (let k = A.k + 1; k < B.k; k++) sync[k].ms = A.ms + (orig[k] - o0) / Math.max(1, o1 - o0) * (B.ms - A.ms); }
+    }
+    for (let k = 1; k < sync.length; k++) if (sync[k].ms <= sync[k - 1].ms) sync[k].ms = sync[k - 1].ms + 1;
   }
   g.score.masterBars.forEach(mb => { mb.syncPoints = undefined; });
   sync.forEach(sp => {
@@ -5514,7 +5554,7 @@ $("tbPdf").addEventListener("click", e => {
   let best = -1, bd = Infinity;
   P.layout.forEach((L, k) => { if (L.page !== i || y < L.y0 || y > L.y1) return; const d = x < L.x0 ? L.x0 - x : x > L.x1 ? x - L.x1 : 0; if (d < bd) { bd = d; best = k; } });
   if (best < 0 || bd > 20) return;
-  if (PL.gp.fixing) { tbAnchorAt(best); return; }
+  if (PL.gp.fixing) { tbFixSelect(best); return; }
   const L = P.layout[best], g = PL.gp, a = PL.audio; if (!g.sync?.length || !a) return;
   let f = 0; const B = L.beats.concat([{ x: L.x1, p: 1 }]);
   for (let k = 0; k + 1 < B.length; k++) if (x >= B[k].x && x < B[k + 1].x) { f = B[k].p + (B[k + 1].p - B[k].p) * (x - B[k].x) / Math.max(1, B[k + 1].x - B[k].x); break; }
@@ -5535,7 +5575,93 @@ function tbFixUi() {
   $("tbFixHint").hidden = !g.fixing;
   $("tbFixReset").hidden = !(g.anchors?.length);
   $("tbFixReset").textContent = g.anchors?.length ? `Togli le correzioni (${g.anchors.length})` : "Togli le correzioni";
+  const k = g.fixSel, x = k != null ? g.sync?.[k] : null, an = k != null ? (g.anchors || []).find(a => a.k === k) : null;
+  $("fxListen").disabled = !x; $("tbFixHint").querySelectorAll("[data-fxn]").forEach(b => b.disabled = !x);
+  $("fxDel").hidden = !an;
+  if (x) {
+    $("fxTitle").textContent = `Battuta ${x.bar + 1}`;
+    $("fxInfo").textContent = `Inizia a ${fmtT2((x.ms + (g.offMs || 0)) / 1000)}${an ? " · corretta a mano" : " · calcolata"}. Ascolta: se il riquadro arriva prima o dopo l'attacco, premi "Adesso!" mentre suona oppure sposta di un decimo.`;
+  } else {
+    $("fxTitle").textContent = "Tocca nella tab la battuta che parte nel punto sbagliato";
+    $("fxInfo").textContent = "Oppure fai suonare il brano e premi \"Adesso!\" quando senti iniziare una battuta: si aggancia quella più vicina.";
+  }
+  const A = (g.anchors || []).slice().sort((p2, q2) => p2.k - q2.k);
+  $("fxList").innerHTML = A.length ? `<span class="label">Correzioni</span>` + A.map(a => { const b = g.sync?.[a.k]?.bar; return `<span class="fx-chip${a.k === k ? " on" : ""}"><button type="button" data-fxk="${a.k}">Batt. ${b != null ? b + 1 : "?"} · ${fmtT2((a.ms + (g.offMs || 0)) / 1000)}</button><button type="button" data-fxx="${a.k}" aria-label="Togli questa correzione">✕</button></span>`; }).join("") : "";
+  tbFixMarks(); plDraw();
 }
+// scelta della battuta da sistemare: tra le volte in cui si ripete, quella più vicina al punto in cui sei
+function tbFixSelect(barIdx) {
+  const g = PL.gp; if (!g?.sync?.length || !PL.audio) return;
+  const now = PL.audio.currentTime * 1000 - (g.offMs || 0);
+  let k = -1, kd = Infinity; g.sync.forEach((x, i) => { if (x.bar === barIdx && Math.abs(x.ms - now) < kd) { kd = Math.abs(x.ms - now); k = i; } });
+  if (k < 0) return;
+  g.fixSel = k;
+  if (PL.audio.paused) { PL.audio.currentTime = Math.max(0, (g.sync[k].ms + (g.offMs || 0)) / 1000); plUpdate(); }
+  tbFixUi();
+}
+function tbFixSet(k, ms) {
+  const g = PL.gp;
+  g.anchors = (g.anchors || []).filter(a => a.k !== k).concat({ k, ms: Math.max(0, ms) }).sort((p2, q2) => p2.k - q2.k);
+  try { localStorage.setItem(PL.key + ":gpanc", JSON.stringify(g.anchors)); } catch (e) {}
+  g.fixSel = k; tbFixUi(); tbFixResync();
+}
+function tbFixResync() {
+  clearTimeout(PL.fxT); $("tbStatus").textContent = "Riallineo il resto della tab…";
+  PL.fxT = setTimeout(() => tbSync().then(() => { $("tbStatus").textContent = "Aggancio aggiornato."; tbFixUi(); tbPdfFollow?.(true); }), 350);
+}
+// "Adesso!": la battuta scelta (o quella che secondo l'app inizia più vicino a ora) parte in questo istante
+function tbFixNow() {
+  const g = PL.gp, a = PL.audio; if (!g?.sync?.length || !a) return;
+  const now = a.currentTime * 1000 - (g.offMs || 0) - 60;          // 60 ms: il tempo medio di reazione al tocco
+  let k = g.fixSel;
+  if (k == null || a.paused === false && Math.abs(g.sync[k].ms - now) > 4000) {
+    k = 0; let kd = Infinity; g.sync.forEach((x, i) => { const d = Math.abs(x.ms - now); if (d < kd) { kd = d; k = i; } });
+  }
+  tbFixSet(k, now);
+  $("tbStatus").textContent = `Battuta ${g.sync[k].bar + 1} agganciata a ${fmtT2((now + (g.offMs || 0)) / 1000)}. Riallineo il resto…`;
+}
+$("fxNow").addEventListener("click", tbFixNow);
+$("fxDone").addEventListener("click", () => { if (!PL.gp) return; PL.gp.fixing = false; PL.gp.fixSel = null; tbFixUi(); });
+$("fxDel").addEventListener("click", () => { const g = PL.gp, k = g?.fixSel; if (k == null) return; g.anchors = (g.anchors || []).filter(a => a.k !== k); try { localStorage.setItem(PL.key + ":gpanc", JSON.stringify(g.anchors)); } catch (e) {} tbFixUi(); tbFixResync(); });
+$("tbFixHint").addEventListener("click", e => {
+  const g = PL.gp; if (!g) return;
+  const n = e.target.closest("[data-fxn]");
+  if (n && g.fixSel != null) { const k = g.fixSel, an = (g.anchors || []).find(a => a.k === k), cur = an ? an.ms : g.sync[k].ms; tbFixSet(k, cur + +n.dataset.fxn); if (PL.audio.paused) { PL.audio.currentTime = Math.max(0, (cur + +n.dataset.fxn + (g.offMs || 0)) / 1000); plUpdate(); } return; }
+  const c = e.target.closest("[data-fxk]"); if (c) { g.fixSel = +c.dataset.fxk; if (PL.audio.paused) { PL.audio.currentTime = Math.max(0, (g.sync[g.fixSel].ms + (g.offMs || 0)) / 1000); plUpdate(); } tbFixUi(); return; }
+  const x = e.target.closest("[data-fxx]"); if (x) { const k = +x.dataset.fxx; g.anchors = (g.anchors || []).filter(a => a.k !== k); try { localStorage.setItem(PL.key + ":gpanc", JSON.stringify(g.anchors)); } catch (err) {} tbFixUi(); tbFixResync(); }
+});
+// ascolta da 2 s prima dell'inizio della battuta, per 5 s
+$("fxListen").addEventListener("click", () => {
+  const g = PL.gp, a = PL.audio, k = g?.fixSel; if (k == null || !a) return;
+  clearTimeout(PL.fxListenT);
+  a.currentTime = Math.max(0, (g.sync[k].ms + (g.offMs || 0) - 2000) / 1000); plUpdate();
+  plPlay(); PL.fxListenT = setTimeout(() => { if (!a.paused) plPause(); }, 5000);
+});
+document.addEventListener("keydown", e => {
+  if (!PL.gp?.fixing || st.tab !== "player" || e.key !== "Enter" || /input|textarea|select/i.test(document.activeElement?.tagName || "")) return;
+  e.preventDefault(); tbFixNow();
+});
+// segni delle correzioni: sul PDF (puntini e riquadro della battuta scelta) e sulla tab (riquadro)
+function tbFixMarks() {
+  const g = PL.gp; document.querySelectorAll(".tb-pin, .tb-sel").forEach(el => el.remove()); if (!g?.fixing) return;
+  const P = g.pdf;
+  if (P?.pages?.length) {
+    const mark = (k, cls) => { const L = P.layout[g.sync?.[k]?.bar]; const pg = L && P.pages[L.page]; if (!pg) return; const d = document.createElement("div"); d.className = cls;
+      if (cls === "tb-pin") Object.assign(d.style, { left: L.x0 * pg.sc - 5 + "px", top: L.sy0 * pg.sc - 5 + "px" });
+      else Object.assign(d.style, { left: L.x0 * pg.sc + "px", top: L.y0 * pg.sc + "px", width: (L.x1 - L.x0) * pg.sc + "px", height: (L.y1 - L.y0) * pg.sc + "px" });
+      pg.wrap.append(d); };
+    (g.anchors || []).forEach(a => mark(a.k, "tb-pin"));
+    if (g.fixSel != null) mark(g.fixSel, "tb-sel");
+  }
+  if (g.fixSel != null && !$("tbView").classList.contains("tb-offscreen")) {
+    try {
+      const mb = g.api?.renderer?.boundsLookup?.findMasterBarByIndex?.(g.sync[g.fixSel].bar) || g.api?.renderer?.boundsLookup?.masterBars?.[g.sync[g.fixSel].bar];
+      const b = mb?.visualBounds || mb?.realBounds;
+      if (b) { const d = document.createElement("div"); d.className = "tb-sel"; Object.assign(d.style, { left: b.x + "px", top: b.y + "px", width: b.w + "px", height: b.h + "px" }); const host = $("tbView").querySelector(".at-surface") || $("tbView"); host.append(d); }
+    } catch (e) {}
+  }
+}
+
 function tbAnchorAt(barIdx) {
   const g = PL.gp, now = PL.audio.currentTime * 1000 - (g.offMs || 0);
   // tra le volte in cui la battuta si suona (ripetizioni) scelgo quella più vicina al punto in cui sei
@@ -5551,7 +5677,7 @@ function tbAnchorAt(barIdx) {
 $("tbAuto").addEventListener("change", e => { st.tbAuto = e.target.checked; save(); PL.tbManualUntil = 0; tbFollow(); });
 // rotella, dito o barra di scorrimento sul riquadro: lo scorrimento automatico si sospende per 4 secondi
 ["wheel", "touchstart", "pointerdown"].forEach(ev => $("tbView").addEventListener(ev, e => { if (ev !== "pointerdown" || e.target === $("tbView")) PL.tbManualUntil = performance.now() + 4000; }, { passive: true }));
-$("tbFix").addEventListener("click", () => { if (!PL.gp) return; PL.gp.fixing = !PL.gp.fixing; tbFixUi(); });
+$("tbFix").addEventListener("click", () => { if (!PL.gp) return; PL.gp.fixing = !PL.gp.fixing; PL.gp.fixSel = null; tbFixUi(); });
 $("tbFixReset").addEventListener("click", () => { if (!PL.gp) return; PL.gp.anchors = []; try { localStorage.removeItem(PL.key + ":gpanc"); } catch (e) {} tbFixUi(); tbSync(); });
 $("tbPart").addEventListener("change", e => { if (PL.pdfSrc) tbOpenPdf(PL.pdfSrc.bytes, PL.pdfSrc.name, +e.target.value); });
 $("tbTrack").addEventListener("change", e => { PL.gp.track = +e.target.value; tbRender(); });
