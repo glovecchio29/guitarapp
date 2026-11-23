@@ -999,6 +999,13 @@ details.more > summary::-webkit-details-marker { display: none; }
 .ab-exact input { width: 110px; font-variant-numeric: tabular-nums; }
 .ab-exact input.bad { border-color: #e03131; }
 .ab-exact .hint { flex: 1 1 220px; margin: 0; }
+.tb-offscreen { position: absolute !important; left: -10000px !important; width: 900px !important; height: 300px !important; overflow: hidden !important; visibility: hidden; }
+.tb-pdf { position: relative; isolation: isolate; max-height: 72vh; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #8d939a; overscroll-behavior: contain; display: grid; gap: 8px; justify-content: center; }
+.tb-pg { position: relative; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: pointer; }
+.tb-pg canvas { display: block; width: 100%; height: 100%; }
+.tb-hl { position: absolute; background: rgba(252, 196, 25, .22); border-radius: 4px; pointer-events: none; transition: left .12s, top .12s, width .12s, height .12s; }
+.tb-cur { position: absolute; width: 2px; background: #e03131; pointer-events: none; border-radius: 1px; }
+#tbViewSeg button { padding: 6px 10px; }
 </style>
 
 <div class="app">
@@ -1141,6 +1148,7 @@ details.more > summary::-webkit-details-marker { display: none; }
           <label class="field tb-track" id="tbPartF" hidden><span class="label">Parte</span><select id="tbPart"></select></label>
           <div class="field tb-nudge"><span class="label">Tab rispetto al brano</span>
             <div class="grp"><button class="btn icon" data-tbn="-250" aria-label="Tab prima di un quarto di secondo">−</button><output id="tbOff">0,00 s</output><button class="btn icon" data-tbn="250" aria-label="Tab dopo di un quarto di secondo">+</button></div></div>
+          <div class="seg" id="tbViewSeg" hidden role="group" aria-label="Come vedere la tab"><button type="button" data-v="pdf">PDF originale</button><button type="button" data-v="tab">Tab</button></div>
           <label class="check"><input type="checkbox" id="tbAuto" checked> Scorrimento automatico</label>
           <button class="btn" id="tbFix" aria-pressed="false">Correggi l'aggancio</button>
           <button class="btn" id="tbFixReset" hidden>Togli le correzioni</button>
@@ -1150,6 +1158,7 @@ details.more > summary::-webkit-details-marker { display: none; }
         <p class="hint" id="tbStatus"></p>
         <p class="hint tb-fixhint" id="tbFixHint" hidden>Fai suonare il brano e, quando senti iniziare una battuta, toccala nella tab: quella battuta resta agganciata a quel momento e l'app riallinea tutto il resto. Puoi farlo in più punti; poi premi di nuovo "Correggi l'aggancio" per finire.</p>
         <div class="tb-view" id="tbView" hidden></div>
+        <div class="tb-pdf" id="tbPdf" hidden aria-label="PDF originale: tocca una battuta per andare a quel punto del brano"></div>
       </section>
 
       <section class="panel" aria-label="Pennata" id="plStrum" data-plm-of="strum" hidden>
@@ -4267,7 +4276,7 @@ async function libDelete(id) {
   try { await libReq("audio", "readwrite", s => s.delete(id)); await libReq("meta", "readwrite", s => s.delete(id)); } catch (e) {}
   LIB.items = LIB.items.filter(x => x.id !== id);
   try { localStorage.removeItem("pl:" + id); localStorage.removeItem("pl:" + id + ":ch"); } catch (e) {}
-  try { await libReq("audio", "readwrite", s => s.delete(id + ":voc")); await libReq("audio", "readwrite", s => s.delete(id + ":base")); } catch (e) {}
+  try { await libReq("audio", "readwrite", s => s.delete(id + ":voc")); await libReq("audio", "readwrite", s => s.delete(id + ":base")); await libReq("audio", "readwrite", s => s.delete(id + ":pdf")); } catch (e) {}
   if (st.lastSong === id) { st.lastSong = null; st.lastPos = 0; save(); }
   if (PL.libId === id && PL.audio) {          // era il brano aperto: lo chiudo
     plPause(); PL.audio.removeAttribute("src"); PL.audio.load(); PL.audio = null;
@@ -4760,11 +4769,11 @@ async function tbOpen(bytes, name, persist = true) {
     await atLoad();
     if (PL.gp?.api) { try { PL.gp.ro?.disconnect(); PL.gp.api.destroy(); } catch (e) {} $("tbView").innerHTML = ""; }
     let score;
-    if (bytes && bytes.tex != null) { const imp = new alphaTab.importer.AlphaTexImporter(); imp.initFromString(bytes.tex, atSettings()); score = imp.readScore(); }
+    if (bytes && bytes.tex != null) { const imp = new alphaTab.importer.AlphaTexImporter(); imp.initFromString(bytes.tex, atSettings()); score = imp.readScore(); PL.texSrcTmp = bytes.tex; }
     else score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, atSettings());
     const tracks = score.tracks.map((t, i) => ({ i, t })).filter(x => !x.t.staves.every(st => st.isPercussion));
     if (!tracks.length) throw new Error("nessuna traccia");
-    PL.gp = { score, name, tracks: tracks.map(x => x.i), anchors: (() => { try { return JSON.parse(localStorage.getItem(PL.key + ":gpanc") || "[]"); } catch (e) { return []; } })(), offMs: (() => { try { return +localStorage.getItem(PL.key + ":gpoff") || 0; } catch (e) { return 0; } })() };
+    PL.gp = { texSrc: bytes && bytes.tex != null ? bytes.tex : null, score, name, tracks: tracks.map(x => x.i), anchors: (() => { try { return JSON.parse(localStorage.getItem(PL.key + ":gpanc") || "[]"); } catch (e) { return []; } })(), offMs: (() => { try { return +localStorage.getItem(PL.key + ":gpoff") || 0; } catch (e) { return 0; } })() };
     const pick = tracks.find(x => /guit|chitar|gtr|acoust|rhythm/i.test(x.t.name)) || tracks[0];
     PL.gp.track = pick.i;
     if (persist && bytes.tex != null) { try { localStorage.setItem(PL.key + ":gp", JSON.stringify({ name, tex: bytes.tex })); } catch (e) {} }
@@ -4777,7 +4786,7 @@ async function tbOpen(bytes, name, persist = true) {
 }
 function tbRender() {
   const g = PL.gp, has = !!g;
-  $("tbBar").hidden = !has; $("tbView").hidden = !has; $("tbHint").hidden = has;
+  $("tbBar").hidden = !has; $("tbView").hidden = !has; $("tbHint").hidden = has; tbPdfApply();
   if (!has) { $("tbStatus").textContent = ""; return; }
   const sc = g.score, tempo = Math.round(sc.tempo || 0);
   $("tbInfo").innerHTML = `<b>${sc.title || g.name.replace(/\.[^.]+$/, "")}</b>${sc.artist ? " · " + sc.artist : ""}${tempo ? ` · ${tempo} BPM` : ""} · ${sc.masterBars.length} battute`;
@@ -4995,6 +5004,7 @@ function tbPlayState(playing) {
 function tbPos() {
   const out = PL.gp?.api?.player?.output; if (!out?.updatePosition || !PL.audio) return;
   out.updatePosition(Math.max(0, PL.audio.currentTime * 1000 - (PL.gp.offMs || 0)));
+  if (PL.gp.pdf) tbPdfFollow();
   // al massimo 5 volte al secondo (prima veniva rimandato a ogni fotogramma e, mentre suonava, non partiva mai)
   if (!PL.tbFollowT) PL.tbFollowT = setTimeout(() => { PL.tbFollowT = 0; tbFollow(); }, 200);
 }
@@ -5025,7 +5035,14 @@ function tbAutoUi() { $("tbAuto").checked = st.tbAuto !== false; }
 function tbRestore() {
   PL.gp = null; let saved = null;
   try { saved = JSON.parse(localStorage.getItem(PL.key + ":gp") || "null"); } catch (e) {}
-  if (saved) tbOpen(saved.tex != null ? { tex: saved.tex } : b64.dec(saved.data), saved.name, false); else tbRender();
+  if (saved?.pdf && PL.libId) {
+    const key = PL.key;
+    libReq("audio", "readonly", s2 => s2.get(PL.libId + ":pdf")).then(async b => {
+      if (PL.key !== key) return;
+      if (b) tbOpenPdf(new Uint8Array(await b.arrayBuffer()), saved.name, saved.part || 0, false);
+      else if (saved.tex) tbOpen({ tex: saved.tex }, saved.name, false); else tbRender();
+    }).catch(() => { if (saved.tex) tbOpen({ tex: saved.tex }, saved.name, false); });
+  } else if (saved) tbOpen(saved.tex != null ? { tex: saved.tex } : b64.dec(saved.data), saved.name, false); else tbRender();
 }
 $("tbFile").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -5325,7 +5342,7 @@ function pdfLoad() {
         cols.forEach((c, k) => { c.d = Math.max(1, (cols[k + 1]?.pos ?? len16) - c.pos); });
         cols.forEach(c => c.lead = 0); if (cols.length) cols[0].lead = cols[0].pos;
       } else if (cols.length) { cols.forEach(c => c.lead = 0); cols[0].lead = lead; }
-      out.push({ cols, len16, meter: mtr, mode });
+      out.push({ cols, len16, meter: mtr, mode, a, e });
     }
     return { bars: out, meter: mtr };
   }
@@ -5342,7 +5359,7 @@ function pdfLoad() {
     // sistemi: righe a 6 linee consecutive con le stanghette negli stessi punti = parti diverse suonate insieme
     const seq = [];
     pages.forEach((g, pi) => {
-      const rs = allStaves[pi].map(st => ({ st, r: readStaff(g, st, fretSize) }));
+      const rs = allStaves[pi].map(st => ({ st, r: readStaff(g, st, fretSize), pi }));
       let sys = null;
       rs.forEach(o => {
         const sameSys = sys && o.st.top - sys[sys.length - 1].st.bot < o.st.sp * 12 && (() => { const A = sys[0].r.bars, B = o.r.bars; const hit = B.filter(x => A.some(y => Math.abs(x - y) < 2.5)).length; return hit >= Math.min(A.length, B.length) * 0.7 && B.length > 2; })();
@@ -5350,11 +5367,15 @@ function pdfLoad() {
       });
     });
     const nParts = Math.max(1, ...seq.map(s => s.length)), part = Math.min(opts.part || 0, nParts - 1);
-    let meter = { num: 4, den: 4 }; const bars = []; let nNotes = 0, byStem = 0;
+    let meter = { num: 4, den: 4 }; const bars = [], layout = []; let nNotes = 0, byStem = 0;
     seq.forEach(sys => {
       const o = sys[Math.min(part, sys.length - 1)];
       const res = staffBars(o.st, o.r, meter); meter = res.meter;
+      const sysTop = sys[0].st.top, sysBot = sys[sys.length - 1].st.bot, sp = o.st.sp;
       res.bars.forEach(b => {
+        // dove sta la battuta sul PDF (in punti, dall'alto) e dove cadono le note nel tempo della battuta (0–1)
+        let pos = b.cols[0]?.lead || 0; const lb = b.cols.map(c => { const q = { x: c.cx, p: pos / b.len16 }; pos += c.d; return q; });
+        layout.push({ page: o.pi, x0: b.a, x1: b.e, y0: sysTop - sp * 3, y1: sysBot + sp * 4, sy0: o.st.top - sp, sy1: o.st.bot + sp, beats: lb });
         const beats = [];
         if (!b.cols.length) { beats.push(...ptDurTex(b.len16).map(([, d, dot]) => `r.${d}${dot ? "{d}" : ""}`)); }
         else {
@@ -5373,10 +5394,10 @@ function pdfLoad() {
     });
     if (!bars.length) return { error: "Nel PDF non trovo righe di tablatura a 6 linee con numeri: forse è una scansione (un'immagine) o solo pentagramma." };
     const tex = `\\title "Tab da PDF" \\tempo 100 .\n` + bars.map(b => b.tex).join(" |\n") + " |";
-    return { tex, bars: bars.length, notes: nNotes, byStem, parts: nParts, part, pages: doc.numPages, fretSize };
+    return { tex, bars: bars.length, notes: nNotes, byStem, parts: nParts, part, pages: doc.numPages, fretSize, layout, sizes: pages.map(g => ({ W: g.W, H: g.H })) };
   }
   
-async function tbOpenPdf(bytes, name, part = 0) {
+async function tbOpenPdf(bytes, name, part = 0, persist = true) {
   $("tbStatus").textContent = "Leggo il PDF…";
   try {
     const lib = await pdfLoad();
@@ -5384,9 +5405,15 @@ async function tbOpenPdf(bytes, name, part = 0) {
     if (r.error) { $("tbStatus").textContent = r.error; return; }
     PL.pdfSrc = { bytes, name, parts: r.parts, part: r.part };
     const safeName = String(name).replace(/[^\p{L}\p{N} ._()-]/gu, "").trim() || "Tab da PDF";
-    await tbOpen({ tex: r.tex.replace('"Tab da PDF"', '"' + safeName + '"') }, name);
+    await tbOpen({ tex: r.tex.replace('"Tab da PDF"', '"' + safeName + '"') }, name, persist);
     if (PL.gp) {
       PL.gp.pdfParts = r.parts; PL.gp.pdfPart = r.part; tbPdfPartUi();
+      PL.gp.pdf = { layout: r.layout, sizes: r.sizes, bytes, doc: null, rendered: 0 };
+      if (persist) {
+        if (PL.libId) libReq("audio", "readwrite", s2 => s2.put(new Blob([bytes], { type: "application/pdf" }), PL.libId + ":pdf")).catch(() => {});
+        try { localStorage.setItem(PL.key + ":gp", JSON.stringify({ name, tex: PL.gp.texSrc || null, pdf: true, part: r.part })); } catch (e) {}
+      }
+      tbPdfApply();
       $("tbStatus").textContent = `Letto il PDF: ${r.bars} battute e ${r.notes} note su ${r.pages} pagine. Ritmo dai segni del PDF in ${r.byStem} battute su ${r.bars}, nelle altre dalla spaziatura.` + (r.parts > 1 ? ` Ci sono ${r.parts} parti di chitarra insieme: scegli quale in "Parte".` : "");
     }
   } catch (err) {
@@ -5399,6 +5426,107 @@ function tbPdfPartUi() {
   const n = g?.pdfParts || 1; f.hidden = !(n > 1 && PL.pdfSrc);
   if (!f.hidden) $("tbPart").innerHTML = Array.from({ length: n }, (_, i) => `<option value="${i}"${i === g.pdfPart ? " selected" : ""}>${i + 1}ª chitarra</option>`).join("");
 }
+
+
+// ===================== PDF originale che scorre a tempo =====================
+// Le pagine si disegnano così come sono (pdf.js); la lettura del PDF dà dove sta ogni battuta e, con l'aggancio
+// al brano (lo stesso della tab), quando suona. Un riquadro evidenzia la battuta e una linea segue le note.
+if (!st.tbPdfView) st.tbPdfView = "pdf";
+function tbPdfOn() { return !!PL.gp?.pdf && st.tbPdfView !== "tab"; }
+function tbPdfApply() {
+  const on = tbPdfOn(), has = !!PL.gp?.pdf;
+  $("tbViewSeg").hidden = !has;
+  $("tbViewSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === (on ? "pdf" : "tab"))));
+  $("tbPdf").hidden = !on;
+  $("tbView").classList.toggle("tb-offscreen", on);      // la tab resta disegnata fuori vista: serve all'aggancio
+  if (on) tbPdfRender();
+}
+$("tbViewSeg").addEventListener("click", e => {
+  const b = e.target.closest("[data-v]"); if (!b) return; st.tbPdfView = b.dataset.v; save(); tbPdfApply();
+  // la tab, rimasta fuori vista, non è disegnata (alphaTab disegna solo ciò che si vede): la ridisegno
+  if (!tbPdfOn() && PL.gp) setTimeout(() => { try { PL.gp.api?.render(); } catch (err) {} tbRender(); }, 30);
+});
+async function tbPdfRender(force) {
+  const P = PL.gp?.pdf, box = $("tbPdf"); if (!P || box.hidden) return;
+  const cw = Math.max(200, box.clientWidth - 16); if (!force && P.rendered === cw) return;
+  P.rendered = cw; const tok = (P.tok = (P.tok || 0) + 1);
+  const lib = await pdfLoad(); if (!P.doc) P.doc = await lib.getDocument({ data: P.bytes.slice(0) }).promise;
+  if (P.tok !== tok) return;
+  box.innerHTML = ""; P.pages = [];
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  for (let i = 0; i < P.doc.numPages; i++) {
+    const sz = P.sizes[i], sc = cw / sz.W, wrap = document.createElement("div"); wrap.className = "tb-pg"; wrap.dataset.i = i;
+    wrap.style.width = cw + "px"; wrap.style.height = Math.round(sz.H * sc) + "px";
+    const cv = document.createElement("canvas"); cv.width = Math.round(cw * dpr); cv.height = Math.round(sz.H * sc * dpr); wrap.append(cv);
+    box.append(wrap); P.pages.push({ wrap, sc });
+  }
+  const hl = document.createElement("div"); hl.className = "tb-hl"; const cur = document.createElement("div"); cur.className = "tb-cur";
+  P.hl = hl; P.cur = cur; P.lastBar = -1;
+  for (let i = 0; i < P.doc.numPages; i++) {                 // una pagina alla volta, così la prima compare subito
+    if (P.tok !== tok) return;
+    const page = await P.doc.getPage(i + 1), vp = page.getViewport({ scale: P.pages[i].sc * dpr }), cv = P.pages[i].wrap.querySelector("canvas");
+    await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise;
+    if (i === 0) tbPdfFollow(true);
+  }
+  tbPdfFollow(true);
+}
+// battuta e frazione di battuta all'istante attuale, dall'aggancio
+function tbPdfNow() {
+  const g = PL.gp, a = PL.audio; if (!g?.sync?.length || !a) return null;
+  const t = a.currentTime * 1000 - (g.offMs || 0), S = g.sync;
+  let lo = 0, hi = S.length - 1; if (t < S[0].ms) return { k: 0, bar: S[0].bar, f: 0 };
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (S[m].ms <= t) lo = m; else hi = m - 1; }
+  const t1 = S[lo + 1]?.ms ?? (S[lo].ms + (S[lo].ms - (S[lo - 1]?.ms ?? S[lo].ms - 2000)));
+  return { k: lo, bar: S[lo].bar, f: Math.max(0, Math.min(0.999, (t - S[lo].ms) / Math.max(1, t1 - S[lo].ms))) };
+}
+// dalla frazione di battuta alla x sul PDF, passando per le note (non in proporzione alla larghezza)
+function tbPdfX(L, f) {
+  const B = L.beats; if (!B.length) return L.x0 + f * (L.x1 - L.x0);
+  if (f <= B[0].p) return B[0].p > 0 ? L.x0 + (B[0].x - L.x0) * f / B[0].p : B[0].x;
+  for (let i = 0; i < B.length; i++) {
+    const nx = B[i + 1] ? B[i + 1] : { x: L.x1 - 4, p: 1 };
+    if (f < nx.p) return B[i].x + (nx.x - B[i].x) * (f - B[i].p) / Math.max(1e-6, nx.p - B[i].p);
+  }
+  return L.x1 - 4;
+}
+function tbPdfFollow(force) {
+  const P = PL.gp?.pdf; if (!P?.pages?.length || $("tbPdf").hidden) return;
+  const n = tbPdfNow(); if (!n) return; const L = P.layout[n.bar]; if (!L) return;
+  const pg = P.pages[L.page]; if (!pg) return; const sc = pg.sc;
+  if (n.bar !== P.lastBar || force) {
+    P.lastBar = n.bar;
+    if (P.hl.parentNode !== pg.wrap) { pg.wrap.append(P.hl, P.cur); }
+    Object.assign(P.hl.style, { left: L.x0 * sc + "px", top: L.y0 * sc + "px", width: (L.x1 - L.x0) * sc + "px", height: (L.y1 - L.y0) * sc + "px" });
+    Object.assign(P.cur.style, { top: L.sy0 * sc + "px", height: (L.sy1 - L.sy0) * sc + "px" });
+    // la riga che suona resta al centro del riquadro (non mentre scorri a mano)
+    const box = $("tbPdf");
+    if (st.tbAuto !== false && performance.now() >= (PL.tbManualUntil || 0)) {
+      const target = Math.max(0, pg.wrap.offsetTop + ((L.y0 + L.y1) / 2) * sc - box.clientHeight / 2);
+      if (Math.abs(box.scrollTop - target) > 6) tbScrollAnim(box, target, PL.audio?.paused ? 0 : 450);
+    }
+  }
+  P.cur.style.left = (tbPdfX(L, n.f) * sc - 1) + "px";
+}
+// tocco su una battuta del PDF → il brano va lì (in modalità "Correggi l'aggancio" la aggancia)
+$("tbPdf").addEventListener("click", e => {
+  const P = PL.gp?.pdf, wrap = e.target.closest(".tb-pg"); if (!P || !wrap) return;
+  const i = +wrap.dataset.i, sc = P.pages[i].sc, r = wrap.getBoundingClientRect(), x = (e.clientX - r.left) / sc, y = (e.clientY - r.top) / sc;
+  let best = -1, bd = Infinity;
+  P.layout.forEach((L, k) => { if (L.page !== i || y < L.y0 || y > L.y1) return; const d = x < L.x0 ? L.x0 - x : x > L.x1 ? x - L.x1 : 0; if (d < bd) { bd = d; best = k; } });
+  if (best < 0 || bd > 20) return;
+  if (PL.gp.fixing) { tbAnchorAt(best); return; }
+  const L = P.layout[best], g = PL.gp, a = PL.audio; if (!g.sync?.length || !a) return;
+  let f = 0; const B = L.beats.concat([{ x: L.x1, p: 1 }]);
+  for (let k = 0; k + 1 < B.length; k++) if (x >= B[k].x && x < B[k + 1].x) { f = B[k].p + (B[k + 1].p - B[k].p) * (x - B[k].x) / Math.max(1, B[k + 1].x - B[k].x); break; }
+  if (x < (B[0]?.x ?? L.x0)) f = 0;
+  const now = a.currentTime * 1000 - (g.offMs || 0); let kk = -1, kd = Infinity;
+  g.sync.forEach((s2, k) => { if (s2.bar === best && Math.abs(s2.ms - now) < kd) { kd = Math.abs(s2.ms - now); kk = k; } });
+  if (kk < 0) return;
+  const t0 = g.sync[kk].ms, t1 = g.sync[kk + 1]?.ms ?? t0 + 2000;
+  a.currentTime = Math.max(0, (t0 + f * (t1 - t0) + (g.offMs || 0)) / 1000); plUpdate();
+});
+["wheel", "touchstart"].forEach(ev => $("tbPdf").addEventListener(ev, () => { PL.tbManualUntil = performance.now() + 4000; }, { passive: true }));
+new ResizeObserver(() => { const P = PL.gp?.pdf; if (P && !$("tbPdf").hidden && Math.abs((P.rendered || 0) - ($("tbPdf").clientWidth - 16)) > 24) { clearTimeout(P.rt); P.rt = setTimeout(() => tbPdfRender(), 250); } }).observe($("tbPdf"));
 
 // ---- correzione a mano dell'aggancio
 function tbFixUi() {
@@ -5427,7 +5555,7 @@ $("tbFix").addEventListener("click", () => { if (!PL.gp) return; PL.gp.fixing = 
 $("tbFixReset").addEventListener("click", () => { if (!PL.gp) return; PL.gp.anchors = []; try { localStorage.removeItem(PL.key + ":gpanc"); } catch (e) {} tbFixUi(); tbSync(); });
 $("tbPart").addEventListener("change", e => { if (PL.pdfSrc) tbOpenPdf(PL.pdfSrc.bytes, PL.pdfSrc.name, +e.target.value); });
 $("tbTrack").addEventListener("change", e => { PL.gp.track = +e.target.value; tbRender(); });
-$("tbClose").addEventListener("click", () => { try { localStorage.removeItem(PL.key + ":gp"); } catch (e) {} if (PL.gp?.api) { PL.gp.ro?.disconnect(); PL.gp.api.destroy(); } $("tbView").innerHTML = ""; PL.gp = null; tbRender(); });
+$("tbClose").addEventListener("click", () => { try { localStorage.removeItem(PL.key + ":gp"); } catch (e) {} if (PL.libId) libReq("audio", "readwrite", s2 => s2.delete(PL.libId + ":pdf")).catch(() => {}); PL.pdfSrc = null; $("tbPdf").innerHTML = ""; $("tbPdf").hidden = true; if (PL.gp?.api) { PL.gp.ro?.disconnect(); PL.gp.api.destroy(); } $("tbView").innerHTML = ""; PL.gp = null; tbRender(); });
 $("tbChords").addEventListener("click", () => { const sh = tbChordSeq(); if (sh.seq.length) alignWithSheet(sh, t => { $("tbStatus").textContent = t; }); });
 
 // ===================== Pennata (strumming) =====================
@@ -6241,7 +6369,7 @@ function plModeApply() {
   document.querySelectorAll("#plModes [data-plm]").forEach(b => { const on = b.dataset.plm === m; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-selected", String(on)); });
   document.querySelectorAll("#plMain [data-plm-of]").forEach(el => el.classList.toggle("plm-off", el.dataset.plmOf !== m));
   $("plNowMini").hidden = m === "chords" || !PL.chords;
-  if (m === "tab" && PL.gp) setTimeout(() => tbRender(), 0);
+  if (m === "tab" && PL.gp) setTimeout(() => { tbRender(); tbPdfApply(); }, 0);
   if (m === "voice") setTimeout(() => voDraw(), 0);
   if (m === "strum" && PL.chords) stRender();
 }
