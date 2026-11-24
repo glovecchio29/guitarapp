@@ -1037,6 +1037,44 @@ details.more > summary::-webkit-details-marker { display: none; }
 .vd-seek::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #f1f3f5; border: 0; }
 .vd-seek:disabled { opacity: .5; cursor: default; }
 @media (max-width: 760px) { .pl-modes button { font-size: 13px; padding: 9px 1px; } .vd-time { min-width: 0; } }
+/* ---- Suona e ascolta (versione personale) ---- */
+.smp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
+.smp-row .hint { margin: 0; }
+.smp-credits { font-size: 12px; }
+.asc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.asc-head h2 { margin: 0; }
+.asc-live { display: flex; align-items: center; gap: 14px; margin: 12px 0 8px; }
+.asc-note { font-size: 34px; font-weight: 700; min-width: 3.2em; font-variant-numeric: tabular-nums; line-height: 1; }
+.asc-note small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+.asc-meter { flex: 1; height: 8px; border-radius: 4px; background: var(--line, #3a3f45); overflow: hidden; }
+.asc-meter i { display: block; height: 100%; width: 0; background: var(--fg, #e9ecef); opacity: .7; transition: width .06s linear; }
+.asc-goal { margin: 6px 0 10px; }
+.asc-task { font-size: 20px; margin: 6px 0 4px; }
+.asc-task b { font-size: 26px; }
+.asc-score { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 8px 0; }
+.asc-stat { border: 1px solid var(--line, #3a3f45); border-radius: 10px; padding: 8px 10px; }
+.asc-stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.asc-stat span { font-size: 12px; color: var(--muted); }
+.asc-laps { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.asc-laps b { color: var(--fg); font-weight: 600; margin-right: 6px; }
+.asc-set { margin-top: 10px; }
+.asc-set .fields { margin-top: 8px; }
+.asc-hist { display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px; margin-top: 6px; }
+.asc-hist span { font-size: 13px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line, #3a3f45); }
+.asc-hist .in { border-color: #40c057; }
+.asc-hist .tone { background: rgba(64,192,87,.22); border-color: #40c057; }
+.asc-hist .out { border-color: #e03131; color: #ff8787; }
+svg .live-hit circle { fill: none; stroke-width: 4; }
+svg .live-hit.in circle { stroke: #40c057; }
+svg .live-hit.tone circle { stroke: #40c057; fill: rgba(64,192,87,.35); }
+svg .live-hit.out circle { stroke: #e03131; fill: rgba(224,49,49,.25); }
+svg .live-hit text { font-size: 11px; font-weight: 700; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+svg .live-hit { animation: liveHit .9s ease-out forwards; pointer-events: none; }
+svg .live-hit.reveal-hit { animation-duration: 1.4s; }
+@keyframes liveHit { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
+svg .n.target circle { stroke: #fff; stroke-width: 4; stroke-dasharray: 4 3; }
+.board-wrap.asc-hide svg .n { opacity: 0; }
+.board-wrap.asc-hide svg .n.reveal { opacity: 1; transition: opacity .2s; }
 </style>
 
 <div class="app">
@@ -1512,7 +1550,9 @@ details.more > summary::-webkit-details-marker { display: none; }
       </div>
       <div class="mixer" id="mixer"></div>
       <label class="check"><input type="checkbox" id="countIn"> Conteggio iniziale (4 colpi)</label>
+      <div class="smp-row" data-only="personale"><label class="check"><input type="checkbox" id="realSnd"> Suoni realistici (batteria, basso e pianoforte campionati)</label><span class="hint" id="smpMsg"></span></div>
       <p class="hint">Basso e accordi seguono la progressione, la melodia usa le note del modo di ogni accordo. Tempo, stile, volumi e linee si possono cambiare mentre suona; il manico segue l'accordo in corso.</p>
+      <p class="hint smp-credits" data-only="personale">Suoni realistici: batteria Virtuosity Drums (Versilian Studios, Karoryfer Samples, CC0), basso Black and Blue Basses (Karoryfer Samples, CC0), pianoforte Salamander Grand Piano di Alexander Holm (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>), accorciati e convertiti.</p>
     </section>
 
     <div class="cols">
@@ -1728,12 +1768,12 @@ const DEFAULTS = { tab:"scale", root: 9, scale: "pmin", tuning: "std", frets: 22
 const KEY = "scale-sul-manico-v1";
 let st = { ...DEFAULTS };
 try { st = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch (e) {}
-const HASH_TAB = { "#regolo": "ruler", "#accordatore": "tuner", "#orecchio": "ear", "#libreria": "library", "#player": "player", "#scale": "scale", "#progressione": "prog", "#box": "box", "#accordi": "chords", "#tonalita": "keys" };
-const TAB_HASH = { ruler: "#regolo", tuner: "#accordatore", ear: "#orecchio", library: "#libreria", player: "#player", scale: "#scale", prog: "#progressione", box: "#box", chords: "#accordi", keys: "#tonalita" };
+const HASH_TAB = { "#suona": "drill", "#regolo": "ruler", "#accordatore": "tuner", "#orecchio": "ear", "#libreria": "library", "#player": "player", "#scale": "scale", "#progressione": "prog", "#box": "box", "#accordi": "chords", "#tonalita": "keys" };
+const TAB_HASH = { drill: "#suona", ruler: "#regolo", tuner: "#accordatore", ear: "#orecchio", library: "#libreria", player: "#player", scale: "#scale", prog: "#progressione", box: "#box", chords: "#accordi", keys: "#tonalita" };
 // in quali schede si vede ogni gruppo di elementi
 const VIS = {
-  "only-ear": ["ear"], "only-tuner": ["tuner"], "only-player": ["player"], "only-library": ["library"], "only-scale": ["scale"], "only-prog": ["prog"], "only-box": ["box"], "only-chords": ["chords"], "only-keys": ["keys"],
-  "no-box": ["scale", "prog"], "with-formula": ["scale", "prog", "box"], "with-roots": ["scale", "prog", "box", "chords", "ruler"], "only-ruler": ["ruler"],
+  "only-drill": ["drill"], "only-ear": ["ear"], "only-tuner": ["tuner"], "only-player": ["player"], "only-library": ["library"], "only-scale": ["scale"], "only-prog": ["prog"], "only-box": ["box"], "only-chords": ["chords"], "only-keys": ["keys"],
+  "no-box": ["scale", "prog", "drill"], "with-formula": ["scale", "prog", "box"], "with-roots": ["scale", "prog", "box", "chords", "ruler", "drill"], "only-ruler": ["ruler"],
 };
 if (HASH_TAB[location.hash]) st.tab = HASH_TAB[location.hash];
 let chordSel = null;
@@ -2056,6 +2096,7 @@ function toneHit(t, type, f0, f1, peak, dcy, dest) {
   o.connect(g).connect(dest); perc(g, t, peak, dcy); o.start(t); o.stop(t + dcy + 0.05);
 }
 function drum(inst, t, v, dest) {
+  if (inst !== "m" && smpOn() && SMP.drums && smpDrum(inst, t, v, dest)) return;
   switch (inst) {
     case "k": toneHit(t, "sine", 150, 45, 1.0 * v, 0.34, dest); noiseHit(t, "lowpass", 3000, 0.1 * v, 0.012, dest); break;
     case "s": noiseHit(t, "highpass", 1300, 0.5 * v, 0.17, dest); toneHit(t, "triangle", 210, 170, 0.35 * v, 0.08, dest); break;
@@ -2075,6 +2116,7 @@ function pluckAt(midi, t, gain, dur, dest) {
   if (dur) { g.gain.setValueAtTime(gain, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.06); src.stop(t + dur + 0.08); }
 }
 function bassAt(midi, t, dur, dest) {
+  if (smpOn() && SMP.bass) { smpBass(midi, t, dur, dest); return; }
   const c = ac(), o1 = c.createOscillator(), o2 = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
   o1.type = "sawtooth"; o1.frequency.value = hz(midi); o2.type = "sine"; o2.frequency.value = hz(midi);
   lp.type = "lowpass"; lp.Q.value = 1.5; lp.frequency.setValueAtTime(1100, t); lp.frequency.exponentialRampToValueAtTime(300, t + 0.25);
@@ -2205,9 +2247,11 @@ function btStart() {
   BT.ci = Math.max(0, BT.valid.indexOf(st.progSel)); BT.within = 0;
   BT.step = st.countIn ? -16 : 0; BT.next = c.currentTime + 0.12; BT.melKey = "";
   playing = "main"; updatePlayButtons();
+  if (smpOn() && SMP.state === "idle") smpLoad();
   BT.timer = setInterval(btTick, 25); btTick();
 }
 function btStop() {
+  if (PERSONALE && BT.timer && ASC && ASC.ctx === "prog" && ASC.on) setTimeout(() => ascStop(), 0);   // si ferma la base: smetto di ascoltare
   if (BT.timer) clearInterval(BT.timer);
   BT.timer = null;
   if (BT.master) { try { BT.master.disconnect(); } catch (e) {} BT.master = null; BT.buses = null; } // silenzio immediato
@@ -2233,6 +2277,7 @@ function btStep(t) {
     const mk = [st.melody, st.melSeed, L, BT.valid.map(i => current.analysis[i].name + current.analysis[i].mode).join()].join("|");
     if (mk !== BT.melKey) { BT.melKey = mk; BT.mel = st.melody === "off" ? null : makeMelody(BT.valid, L, st.melody, st.melSeed); }
     const idx = BT.valid[BT.ci];
+    if (PERSONALE) ascOnChord({ idx, a, t, dur: L * s16, first: BT.ci === 0 });
     setTimeout(() => {
       if (!BT.timer) return;
       st.progSel = idx; renderAll();
@@ -2252,19 +2297,21 @@ function btStep(t) {
   // accordi
   BT.compEv.forEach(e => {
     if (e.at !== w) return;
-    if (e.type === "pad") padAt(e.v, tt, e.len * s16, B.comp);
-    else if (e.type === "note") pluckAt(e.midi, tt, 0.3, e.len * s16, B.comp);
+    const pf = smpOn() && SMP.piano;
+    if (e.type === "pad") { if (pf) e.v.forEach((m, k) => smpPiano(m, tt + k * 0.012, 0.16, e.len * s16, B.comp, 0.5)); else padAt(e.v, tt, e.len * s16, B.comp); }
+    else if (e.type === "note") { if (pf) smpPiano(e.midi, tt, 0.24, e.len * s16, B.comp); else pluckAt(e.midi, tt, 0.3, e.len * s16, B.comp); }
     else {
       const short = e.ch === "s" || e.ch === "m", up = e.ch === "u";
       const gain = { D: 0.3, d: 0.2, u: 0.17, s: 0.26, m: 0.34 }[e.ch] || 0.25;
       const notes = up ? e.v.slice(1).reverse() : e.v, dur = short ? (e.ch === "m" ? 0.09 : 0.13) : e.len * s16 * 0.95;
-      notes.forEach((m, k) => pluckAt(m, tt + k * (up ? 0.01 : 0.014), gain, dur, B.comp));
+      if (pf) notes.forEach((m, k) => smpPiano(m, tt + k * 0.006, gain * 0.7, dur, B.comp, short ? 0.06 : 0.3));
+      else notes.forEach((m, k) => pluckAt(m, tt + k * (up ? 0.01 : 0.014), gain, dur, B.comp));
     }
   });
   // melodia
   if (BT.mel) (BT.mel[BT.ci] || []).forEach(e => {
     if (e.at !== w) return;
-    leadAt(e.midi, tt, e.len * s16, B.mel);
+    if (smpOn() && SMP.piano) smpPiano(e.midi, tt, 0.34, e.len * s16, B.mel, 0.25); else leadAt(e.midi, tt, e.len * s16, B.mel);
     setTimeout(() => flash(e.midi, e.len * s16 * 1000), Math.max(0, (tt - c.currentTime) * 1000));
   });
   BT.within++;
@@ -3207,6 +3254,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   if (cfg.shapeOnly && cfg.pos?.mute) cfg.pos.mute.forEach((m, s) => { if (!m) return; const [x, y] = at(x0 - openW / 2, sy(s)); h += `<text class="mute-x" x="${x}" y="${y}">×</text>`; });
   h += "</svg>";
   const wrap = $(wrapId); wrap.innerHTML = h; wrap.classList.toggle("vert", vert);
+  wrap._geo = { at, noteU, sy, R, midi: tun.midi, maxF, pos: cfg.pos && !cfg.shapeOnly ? cfg.pos : null };
   // se il manico non entra tutto, scorre da solo per mettere il box al centro
   if (cfg.pos) {
     const c = ((cfg.pos.lo === 0 ? x0 - openW : fx(cfg.pos.lo - 1)) + fx(cfg.pos.hi)) / 2;
@@ -3239,6 +3287,7 @@ function renderTimeline() {
 
 function renderAll() {
   if (!TAB_HASH[st.tab]) st.tab = "scale";
+  if (!PERSONALE && st.tab === "drill") st.tab = "ear";
   const prog = st.tab === "prog", box = st.tab === "box";
   for (const [cls, tabs] of Object.entries(VIS)) document.querySelectorAll("." + cls).forEach(el => el.hidden = !tabs.includes(st.tab));
   if (prog || box) st.lastModes = st.tab;
@@ -3255,6 +3304,7 @@ function renderAll() {
     ruler: "Un regolo musicale: scegli la tonica e leggi le note di modi, scale e accordi.",
     ear: "Allena l'orecchio per livelli: note, intervalli, scale e modi, accordi, giri.",
     tuner: "Accorda la chitarra con il microfono del dispositivo.",
+    drill: "Suona la chitarra: l'app ascolta le note e ti dice se sono quelle giuste.",
   }[st.tab] || "Scegli tonica e scala; tocca una nota per sentirla.";
   const plSec = st.tab === "player" || st.tab === "library";
   $("toolbar").hidden = plSec || st.tab === "keys" || st.tab === "chords" || st.tab === "ear" || st.tab === "tuner";
@@ -3263,13 +3313,14 @@ function renderAll() {
   if (st.tab !== "player" && typeof VO !== "undefined" && VO.on) voMicStop();
   if (st.tab !== "tuner" && !(st.tab === "ear" && st.earEx === "sing") && !(st.tab === "player" && typeof VO !== "undefined" && VO.on)) micRelease();
   if (st.tab === "ear") earRender();
+  if (PERSONALE) ascPlace();
   $("labelsQuick").hidden = ["library", "player", "tuner", "ear"].includes(st.tab);
   plLabCycleRender();
   if (st.tab === "library") libRender();
   { const cur = st.labels === "alt" ? "intervals" : st.labels, c = labCycle().find(x => x[0] === cur) || labCycle()[0];
     $("labCycle").innerHTML = `<span class="lab-ico" aria-hidden="true">${c[2]}</span>${c[1]}`; $("labCycle").setAttribute("aria-label", `Sulle note: ${c[1]}. Tocca per cambiare`); }
   document.body.dataset.tab = st.tab;
-  { const ctxOk = ["scale", "prog", "box", "chords", "ruler"].includes(st.tab); $("now").disabled = !ctxOk; if (!ctxOk || st.tab === "chords") ctxOpen(false); }
+  { const ctxOk = ["scale", "prog", "box", "chords", "ruler", "drill"].includes(st.tab); $("now").disabled = !ctxOk; if (!ctxOk || st.tab === "chords") ctxOpen(false); }
   $("ctxTitle").textContent = st.tab === "prog" ? "Tonalità del brano" : st.tab === "box" ? "Tonica e modo" : st.tab === "ruler" ? "Tonica" : "Tonica e scala";
   dockRender();
   $("plMain").hidden = st.tab !== "player" || !PL.audio;
@@ -3918,7 +3969,7 @@ const SECTIONS = [
   { id: "scale", name: "Scale", tabs: ["scale", "keys", "ruler"], sub: [["scale", "Manico"], ["keys", "Tonalità"], ["ruler", "Regolo"]] },
   { id: "modes", name: "Modi", tabs: ["prog", "box"], sub: [["prog", "Sulla progressione"], ["box", "Box e arpeggi"]] },
   { id: "chords", name: "Accordi", tabs: ["chords"], sub: [["lib", "Libreria"], ["id", "Che accordo è?"]] },
-  { id: "practice", name: "Pratica", tabs: ["ear", "tuner"], sub: [["ear", "Orecchio"], ["tuner", "Accordatore"]] },
+  { id: "practice", name: "Pratica", tabs: PERSONALE ? ["ear", "tuner", "drill"] : ["ear", "tuner"], sub: PERSONALE ? [["ear", "Orecchio"], ["drill", "Suona"], ["tuner", "Accordatore"]] : [["ear", "Orecchio"], ["tuner", "Accordatore"]] },
 ];
 const secOf = tab => SECTIONS.find(s => s.tabs.includes(tab)) || SECTIONS[1];
 function renderNav() {
@@ -3932,7 +3983,7 @@ function renderNav() {
 }
 function goTab(tab) {
   stopAll(); st.tab = tab;
-  if (tab === "ear" || tab === "tuner") st.lastPractice = tab;
+  if (tab === "ear" || tab === "tuner" || tab === "drill") st.lastPractice = tab;
   try { history.replaceState(null, "", TAB_HASH[tab] || "#scale"); } catch (err) {}
   renderAll();
 }
@@ -6565,7 +6616,7 @@ function plModeApply() {
   if (m === "voice") setTimeout(() => voDraw(), 0);
   if (m === "strum" && PL.chords) stRender();
 }
-$("plModes").addEventListener("click", e => { const b = e.target.closest("[data-plm]"); if (!b) return; st.plMode = b.dataset.plm; save(); plModeApply(); plPrepRender(true); });
+$("plModes").addEventListener("click", e => { const b = e.target.closest("[data-plm]"); if (!b) return; st.plMode = b.dataset.plm; save(); plModeApply(); plPrepRender(true); if (PERSONALE) ascPlace(); });
 // adesso / poi in piccolo, nelle modalità diverse da Accordi
 function plNowMini() {
   if ($("plNowMini").hidden || !PL.chords || !PL.audio) return;
@@ -7681,6 +7732,461 @@ $("chords").addEventListener("click", e => {
   renderAll();
   if (chordSel != null) strum(current.chords[i].pcs, 0.32);
 });
+
+// =====================================================================
+// SOLO VERSIONE PERSONALE: suoni campionati della base, ascolto della chitarra, esercizi e playalong.
+// Ascolto e suoni vengono dall'app Matribox (stesso riconoscimento YIN e stessa calibrazione del ritardo).
+// =====================================================================
+
+// ---- suoni campionati (cartella suoni/ accanto alla pagina; se mancano resta la sintesi) ----
+var SMP = { state: "idle", got: 0, total: 0, drums: null, bass: null, piano: null };
+function smpOn() { return PERSONALE && st.realSnd !== false; }
+function smpMsg() {
+  const el = $("smpMsg"); if (!el) return;
+  el.textContent = !smpOn() ? "" : SMP.state === "ready" ? "pronti" : SMP.state === "loading" ? `scarico i suoni… ${SMP.total ? Math.round(SMP.got / SMP.total * 100) : 0}%`
+    : SMP.state === "error" ? "non disponibili qui: suona la versione sintetizzata" : "si scaricano all'avvio della base (circa 3 MB)";
+}
+async function smpLoad() {
+  if (SMP.state === "loading" || SMP.state === "ready") return;
+  SMP.state = "loading"; SMP.got = SMP.total = 0; smpMsg();
+  try {
+    const man = await (await fetch("suoni/suoni.json")).json(), c = ac(), jobs = [];
+    const get = name => { SMP.total++; const pr = fetch("suoni/" + name).then(r => { if (!r.ok) throw new Error(name); return r.arrayBuffer(); })
+      .then(b => c.decodeAudioData(b)).then(buf => { SMP.got++; smpMsg(); return buf; }); jobs.push(pr); return pr; };
+    const drums = {};
+    for (const [k, layers] of Object.entries(man.drums)) drums[k] = layers.map(l => ({ rms: l.rms, bufs: l.files.map(get) }));
+    const bass = man.bass.map(b => ({ midi: b.midi, bufs: b.files.map(get) })), piano = man.piano.map(x => ({ midi: x.midi, bufs: x.files.map(get) }));
+    await Promise.all(jobs);
+    const res = async arr => { for (const x of arr) x.bufs = await Promise.all(x.bufs); return arr; };
+    for (const k in drums) await res(drums[k]);
+    SMP.drums = drums; SMP.bass = await res(bass); SMP.piano = await res(piano); SMP.state = "ready";
+  } catch (e) { SMP.state = "error"; }
+  smpMsg();
+}
+function smpPlay(buf, t, gain, dest, rate = 1, stopAt = null, release = 0.08) {
+  const c = ac(), src = c.createBufferSource(), g = c.createGain();
+  src.buffer = buf; src.playbackRate.value = rate; g.gain.setValueAtTime(gain, t);
+  src.connect(g).connect(dest); src.start(t);
+  if (stopAt != null && stopAt < t + buf.duration / rate) { g.gain.setValueAtTime(gain, stopAt); g.gain.exponentialRampToValueAtTime(0.0001, stopAt + release); src.stop(stopAt + release + 0.02); }
+}
+const smpNear = (arr, midi) => arr.reduce((b, x) => Math.abs(x.midi - midi) < Math.abs(b.midi - midi) ? x : b, arr[0]);
+let smpHat = null;                                   // il charleston aperto si chiude al colpo successivo
+function smpDrum(inst, t, v, dest) {
+  const layers = SMP.drums[inst]; if (!layers) return false;
+  const li = v < 0.45 ? 0 : v < 0.86 ? 1 : 2, L = layers[li], nominal = [0.3, 0.72, 1][li];
+  const buf = L.bufs[Math.floor(Math.random() * L.bufs.length)];
+  if ((inst === "h" || inst === "p" || inst === "o") && smpHat && smpHat.t < t) {
+    smpHat.g.gain.setValueAtTime(smpHat.gain, t); smpHat.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06); smpHat.src.stop(t + 0.08); smpHat = null;
+  }
+  const c = ac(), src = c.createBufferSource(), g = c.createGain(), gain = 0.95 * Math.min(1.25, v / nominal);
+  src.buffer = buf; g.gain.value = gain; src.connect(g).connect(dest); src.start(t);
+  if (inst === "o") smpHat = { src, g, t, gain };
+  return true;
+}
+function smpBass(midi, t, dur, dest) { const x = smpNear(SMP.bass, midi); smpPlay(x.bufs[Math.random() < 0.7 ? 0 : 1], t, 0.9, dest, Math.pow(2, (midi - x.midi) / 12), t + Math.max(0.08, dur), 0.07); }
+function smpPiano(midi, t, gain, dur, dest, release = 0.35) {
+  const x = smpNear(SMP.piano, midi), loud = gain > 0.26 && x.bufs[1];
+  smpPlay(loud ? x.bufs[1] : x.bufs[0], t, gain * (loud ? 2.2 : 3.2), dest, Math.pow(2, (midi - x.midi) / 12), dur ? t + dur : null, release);
+}
+if (PERSONALE) {
+  $("realSnd").checked = st.realSnd !== false; smpMsg();
+  $("realSnd").addEventListener("change", e => { st.realSnd = e.target.checked; save(); smpMsg(); if (smpOn() && SMP.state === "idle" && playing === "main") smpLoad(); });
+}
+
+// ---- ascolto della chitarra: cattura (AudioWorklet), YIN a metà frequenza, nota solo con un attacco ----
+var ASC = { on: false, ctx: null, node: null, src: null, stream: null, wl: false, sr: 48000, ring: new Float32Array(4096), ringN: 0,
+  hist: [1, 1, 1, 1], peak: 0, noise: 1e-4, cand: null, stable: 0, lastMidi: null, attT: -1, confT: 0, reattack: false, hfPrev: 0, half: new Float32Array(1024),
+  onNote: null, live: null, level: 0 };
+const ASC_WORKLET = `class GaCap extends AudioWorkletProcessor {
+  constructor(){ super(); this.buf=null; this.n=0; this.t=0; }
+  process(inputs){ const i=inputs[0]; if(!i||!i.length) return true;
+    if(!this.buf){ this.buf=new Float32Array(1024); this.n=0; }
+    if(this.n===0) this.t=currentTime;
+    const L=i[0].length; for(let k=0;k<L;k++){ let v=0; for(let c=0;c<i.length;c++) v+=i[c][k]; this.buf[this.n+k]=v/i.length; }
+    this.n+=L; if(this.n>=1024){ this.port.postMessage({t:this.t, x:this.buf}, [this.buf.buffer]); this.buf=null; }
+    return true; } }
+registerProcessor('ga-cap', GaCap);`;
+async function ascDevices() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput" && d.deviceId !== "communications");
+  const sel = $("ascIn"); sel.innerHTML = "";
+  sel.append(new Option("Predefinito del sistema", ""));
+  devs.filter(d => d.deviceId !== "default").forEach(d => sel.append(new Option(d.label || "Ingresso senza nome", d.deviceId)));
+  const mb = [...sel.options].find(o => /matribox/i.test(o.textContent));
+  if (st.ascIn && [...sel.options].some(o => o.value === st.ascIn)) sel.value = st.ascIn; else if (mb) { sel.value = mb.value; st.ascIn = mb.value; save(); }
+}
+async function ascCapture() {
+  if (ASC.node) return;
+  if (!MIC_OK) throw new Error("qui il microfono non si può usare: apri la pagina GitHub");
+  const c = ac();
+  if (!ASC.wl) { await c.audioWorklet.addModule(URL.createObjectURL(new Blob([ASC_WORKLET], { type: "text/javascript" }))); ASC.wl = true; }
+  ASC.stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: st.ascIn ? { exact: st.ascIn } : undefined,
+    echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  ASC.src = c.createMediaStreamSource(ASC.stream); ASC.sr = c.sampleRate;
+  ASC.node = new AudioWorkletNode(c, "ga-cap", { numberOfInputs: 1, numberOfOutputs: 0 });
+  ASC.node.port.onmessage = e => ascBlock(e.data.t, e.data.x);
+  ASC.src.connect(ASC.node);
+  ascDevices().catch(() => {});                           // dopo il permesso si leggono i nomi degli ingressi
+}
+function ascRelease() {
+  try { ASC.src?.disconnect(); } catch (e) {}
+  ASC.stream?.getTracks().forEach(t => t.stop());
+  ASC.node = ASC.src = ASC.stream = null;
+}
+function ascReset() { ASC.ringN = 0; ASC.cand = null; ASC.stable = 0; ASC.lastMidi = null; ASC.attT = -1; ASC.reattack = false; ASC.peak = 0; }
+function ascBlock(t, x) {
+  let pk = 0; for (let i = 0; i < x.length; i++) pk = Math.max(pk, Math.abs(x[i]));
+  ASC.level = Math.max(pk, ASC.level * 0.85); ascMeter();
+  if (!ASC.listen) return;
+  for (let i = 0; i < x.length; i += 512) {                 // passi di 512 campioni (~11 ms)
+    const part = x.subarray(i, i + 512);
+    ASC.ring.copyWithin(0, part.length); ASC.ring.set(part, ASC.ring.length - part.length);
+    ASC.ringN = Math.min(ASC.ring.length, ASC.ringN + part.length);
+    if (ASC.ringN >= 2048) ascFrame(t + (i + part.length) / ASC.sr);
+  }
+}
+function ascYin(buf, sr) {
+  const W = Math.min(384, buf.length >> 1), tauMin = Math.floor(sr / 1400), tauMax = Math.min(Math.floor(sr / 72), buf.length - W - 1);
+  const dp = new Float32Array(tauMax + 2); dp[0] = 1; let run = 0, best = -1;
+  for (let tau = 1; tau <= tauMax; tau++) {
+    let q = 0; for (let i = 0; i < W; i++) { const df = buf[i] - buf[i + tau]; q += df * df; }
+    run += q; dp[tau] = run ? q * tau / run : 1;
+    if (best < 0 && tau > tauMin && dp[tau - 1] < 0.15 && dp[tau] >= dp[tau - 1]) { best = tau - 1; dp[tau + 1] = dp[tau]; break; }
+  }
+  if (best < 0) return null;
+  const a = dp[best - 1] ?? dp[best], b = dp[best], c = dp[best + 1] ?? dp[best], sh = (a - c) / (2 * (a - 2 * b + c) || 1);
+  return sr / (best + (isFinite(sh) ? sh : 0));
+}
+function ascFrame(tEnd) {
+  const buf = ASC.ring.subarray(ASC.ring.length - 2048);
+  let e = 0; for (let i = 1024; i < 2048; i++) e += buf[i] * buf[i]; e = Math.sqrt(e / 1024);
+  let hf = 0, en = 0; for (let i = 1537; i < 2048; i++) { const d = buf[i] - buf[i - 1]; hf += d * d; en += buf[i] * buf[i]; }
+  en = Math.sqrt(en / 511);
+  // soglia: mai sotto -68 dB e non più di 30 dB sotto le note appena suonate (il riferimento si dimezza in 1,5 s)
+  ASC.peak = Math.max(e, ASC.peak * Math.pow(0.5, 512 / ASC.sr / 1.5));
+  const th = Math.max(0.0004, ASC.noise * 4, ASC.peak * 0.0316), onset = hf > ASC.hfPrev * 2.5 && e > th;
+  ASC.hfPrev = hf;
+  if ((en > 1.6 * Math.min(...ASC.hist) || onset) && en > th) ASC.attT = tEnd;
+  ASC.hist.shift(); ASC.hist.push(Math.max(en, 1e-7));
+  if (e < th) { ASC.stable = 0; ASC.lastMidi = null; ascLive(null); return; }
+  for (let i = 0; i < 1024; i++) ASC.half[i] = (buf[2 * i] + buf[2 * i + 1]) * 0.5;
+  const f = ascYin(ASC.half, ASC.sr / 2); if (!f) { ASC.stable = 0; return; }
+  const midi = Math.round(69 + 12 * Math.log2(f / 440)); if (midi < 38 || midi > 90) return;
+  if (midi === ASC.cand) ASC.stable++; else { ASC.cand = midi; ASC.stable = 1; }
+  ascLive(midi, f);
+  // nota confermata dopo 3 passi (~32 ms), solo se è cominciata con un attacco: le corde che vibrano per simpatia non contano
+  if (ASC.stable === 3 && (midi !== ASC.lastMidi || ASC.reattack) && tEnd - ASC.attT <= 0.15) {
+    ASC.lastMidi = midi; ASC.reattack = false; ASC.confT = tEnd;
+    const n = { midi, t: tEnd - 2048 / ASC.sr, f };
+    if (ASC.onNote) ASC.onNote(n);
+  }
+  if (onset && midi === ASC.lastMidi && tEnd - ASC.confT > 0.09) { ASC.reattack = true; ASC.stable = 0; }
+}
+let ascMeterT = 0, ascLiveT = 0;
+function ascMeter() {
+  const now = performance.now(); if (now - ascMeterT < 50) return; ascMeterT = now;
+  const el = $("ascMeter"); if (el) el.style.width = Math.min(100, Math.max(0, (60 + 20 * Math.log10(ASC.level + 1e-9)) / 60 * 100)) + "%";
+}
+const ascNm = m => noteName(pcRoot(mod12(m))) + (Math.floor(m / 12) - 1);
+function ascLive(midi, f) {
+  const now = performance.now(); if (midi != null && now - ascLiveT < 60) return; ascLiveT = now;
+  const el = $("ascNote"); if (!el) return;
+  el.innerHTML = midi == null ? "–<small>&nbsp;</small>" : `${ascNm(midi)}<small>${f.toFixed(1)} Hz</small>`;
+}
+
+// ---- ruolo di una nota rispetto all'accordo (dall'esercizio Pratica di Matribox) ----
+const ascSemi = d => parseDeg(d).semi;
+function ascCharDeg(a) {
+  const n = a.scale?.name || a.mode || "";
+  const rules = [["frigio dominante", "3"], ["lidio dominante", "#4"], ["lidio aumentato", "#5"], ["misolidio ♭6", "b6"], ["dorico ♭2", "b2"],
+    ["minore armonica", "7"], ["minore melodica", "6"], ["locrio ♮2", "2"], ["ionico", "7"], ["dorico", "6"], ["frigio", "b2"], ["lidio", "#4"],
+    ["misolidio", "b7"], ["eolio", "b6"], ["locrio", "b5"], ["esatonale", "#5"]];
+  const r = rules.find(([k]) => n.includes(k));
+  return r && a.scale.deg.includes(r[1]) ? r[1] : null;
+}
+function ascInfo(a) {
+  const root = a.ch.pc, map = new Map(); a.scale.deg.forEach(d => map.set(mod12(root + ascSemi(d)), d));
+  const cd = ascCharDeg(a); return { root, map, cd, charPc: cd ? mod12(root + ascSemi(cd)) : null, tones: a.tones };
+}
+const ascRole = (I, pc) => pc === I.root ? "root" : I.tones.includes(pc) ? "tone" : pc === I.charPc ? "char" : I.map.has(pc) ? "scale" : null;
+
+// ---- nota suonata sul manico: anello verde (nel modo), pieno (nota dell'accordo), rosso (fuori) ----
+function ascHit(wrapId, midi, kind) {
+  const wrap = $(wrapId), g = wrap?._geo, svg = wrap?.querySelector("svg"); if (!g || !svg) return;
+  const cands = [];
+  g.midi.forEach((open, s) => { const f = midi - open; if (f >= 0 && f <= g.maxF) cands.push({ s, f }); });
+  if (!cands.length) return;
+  const ref = g.pos ? (g.pos.lo + g.pos.hi) / 2 : wrap._lastF ?? 5;
+  const inBox = g.pos ? cands.filter(c => c.f >= g.pos.lo && c.f <= g.pos.hi) : [];
+  const pick = (inBox.length ? inBox : cands).sort((x, y) => Math.abs(x.f - ref) - Math.abs(y.f - ref))[0];
+  wrap._lastF = pick.f;
+  const [x, y] = g.at(g.noteU(pick.f), g.sy(pick.s));
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  el.setAttribute("class", "live-hit " + kind); el.setAttribute("transform", `translate(${x},${y})`);
+  el.innerHTML = `<circle r="${g.R + 4}"/>` + (kind === "out" ? `<text>${noteName(pcRoot(mod12(midi)))}</text>` : "");
+  svg.appendChild(el); setTimeout(() => el.remove(), 950);
+}
+function ascHistPush(midi, kind) {
+  const el = $("ascHist"); if (!el) return;
+  const sp = document.createElement("span"); sp.className = kind; sp.textContent = noteName(pcRoot(mod12(midi)));
+  el.append(sp); while (el.children.length > 16) el.firstChild.remove();
+}
+
+// ---- esercizi ----
+const ASC_EX = {
+  prog: [["free", "Improvvisa sulla base"], ["change", "Nota dell'accordo a ogni cambio"], ["char", "Nota caratteristica del modo"], ["arp", "Solo arpeggi"]],
+  player: [["free", "Improvvisa sul brano"], ["tones", "Solo note dell'accordo"]],
+  drill: [["find", "Trova la nota"], ["scale", "Suona la scala nel box"]],
+};
+const ASC_GOAL = {
+  free: "Improvvisa: le note del modo si accendono di verde sul manico (piene se sono note dell'accordo), quelle fuori di rosso.",
+  change: "A ogni cambio di accordo la prima nota che suoni deve essere una nota dell'accordo.",
+  char: "Su ogni accordo suona almeno una volta la nota caratteristica del modo: è quella che lo distingue dai modi vicini.",
+  arp: "Suona solo le note dell'accordo in corso (metti il manico su \"Arpeggio\" per vederle).",
+  tones: "Segui il brano suonando solo le note dell'accordo in corso: le trovi sul manico di \"Cosa suonare\".",
+  find: "Ti chiedo una nota: trovala sul manico e suonala. Le note del manico restano nascoste finché non rispondi.",
+  scale: "Suona la scala del box salendo e poi scendendo, una nota alla volta: la prossima è cerchiata sul manico.",
+};
+const ascPct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
+const ascEmpty = () => ({ notes: 0, inMode: 0, tone: 0, beats: 0, beatTone: 0, changes: 0, changeHit: 0, chordsSeen: 0, charHit: 0 });
+const AX = { chords: [], lap: null, laps: [], total: null, task: null, seq: null, seqI: 0, right: 0, wrong: 0, streak: 0, best: 0, t0: 0, times: [] };
+function ascEx() { const list = ASC_EX[ASC.ctx] || ASC_EX.prog, v = st["ascEx_" + ASC.ctx]; return list.some(x => x[0] === v) ? v : list[0][0]; }
+function ascLat() { return (st.ascLat ?? 0) / 1000; }
+
+// sulla progressione: la base avvisa a ogni accordo (tempo dell'orologio audio)
+function ascOnChord(e) {
+  if (!ASC.on || ASC.ctx !== "prog") return;
+  const ch = { t: e.t, dur: e.dur, idx: e.idx, a: e.a, I: ascInfo(e.a) };
+  if (AX.chords.length && e.first) ascCloseLap();
+  ch.sc = AX.lap; AX.chords.push(ch); if (AX.chords.length > 64) AX.chords.shift();
+  for (const sc of [AX.lap, AX.total]) { sc.changes++; sc.chordsSeen++; }
+  ascRender();
+}
+function ascCloseLap() { if (AX.lap && AX.lap.changes) { AX.laps.push(AX.lap); if (AX.laps.length > 8) AX.laps.shift(); } AX.lap = ascEmpty(); }
+function ascScore(sc, role, onBeat) {
+  sc.notes++; if (role) sc.inMode++; if (role === "root" || role === "tone") sc.tone++;
+  if (onBeat) { sc.beats++; if (role === "root" || role === "tone") sc.beatTone++; }
+}
+function ascNoteProg(n) {
+  const t = n.t - ascLat(); let ch = null;
+  for (let i = AX.chords.length - 1; i >= 0; i--) if (AX.chords[i].t <= t) { ch = AX.chords[i]; break; }
+  if (!ch) return;
+  const pc = mod12(n.midi), role = ascRole(ch.I, pc), beat = 60 / st.bpm, pos = (t - ch.t) / beat, onBeat = Math.abs(pos - Math.round(pos)) < 0.15;
+  const lap = ch.sc || AX.lap;
+  for (const sc of [lap, AX.total]) ascScore(sc, role, onBeat);
+  if (!ch.first) { ch.first = true; if (pos < 1.2 && (role === "root" || role === "tone")) { lap.changeHit++; AX.total.changeHit++; } }
+  if (pc === ch.I.charPc && !ch.charOk) { ch.charOk = true; lap.charHit++; AX.total.charHit++; }
+  const ex = ascEx(), tone = role === "root" || role === "tone";
+  const kind = ex === "arp" ? (tone ? "tone" : "out") : !role ? "out" : tone ? "tone" : "in";
+  setTimeout(() => { ascHit("boardWrap", n.midi, kind); ascHistPush(n.midi, kind); }, Math.max(0, (n.t - ac().currentTime) * 1000));
+  ascRender();
+}
+// sul brano del Player: l'accordo si legge dal tempo del brano al momento della nota
+function ascNotePlayer(n) {
+  const a = PL.audio; if (!a || !PL.chords) return;
+  const rate = st.plRate / 100, songT = a.currentTime - (ac().currentTime - (n.t - ascLat())) * rate;
+  const i = plChordIdx(songT), seg = PL.chords.segs[i];
+  if (!seg || seg.q === "N" || a.paused) return;
+  const an = analyze({ ...plRoot(shPc(seg.pc)), q: seg.q }, plChKey()), I = ascInfo(an), pc = mod12(n.midi), role = ascRole(I, pc);
+  const tone = role === "root" || role === "tone";
+  if (AX.lastSeg !== i) { AX.lastSeg = i; AX.lap.changes++; AX.total.changes++; }
+  for (const sc of [AX.lap, AX.total]) ascScore(sc, role, false);
+  const kind = ascEx() === "tones" ? (tone ? "tone" : "out") : !role ? "out" : tone ? "tone" : "in";
+  ascHit("plBoardWrap", n.midi, kind); ascHistPush(n.midi, kind); ascRender();
+}
+// Pratica → Suona
+function ascNewTask() {
+  const ex = ascEx(), cfg = current.cfg;
+  if (ex === "find") {
+    const tun = tuningObj();
+    let pc; do { pc = Math.floor(Math.random() * 12); } while (AX.task && pc === AX.task.pc);
+    const s = Math.floor(Math.random() * tun.midi.length);
+    const nS = tun.midi.length, sn = noteName(pcRoot(mod12(tun.midi[s])));
+    AX.task = { pc, s, lo: tun.midi[s], hi: tun.midi[s] + (+st.frets), name: noteName(pcRoot(pc)), str: `${nS - s}ª corda (${sn}${s === 0 && mod12(tun.midi[nS - 1]) === mod12(tun.midi[0]) ? " grave" : s === nS - 1 && mod12(tun.midi[0]) === mod12(tun.midi[s]) ? " cantino" : ""})` };
+    AX.t0 = performance.now();
+    $("boardWrap").classList.add("asc-hide"); $("boardWrap").querySelectorAll(".n.reveal").forEach(e => e.classList.remove("reveal"));
+  } else {
+    const seq = cfg && cfg.notes?.length ? upDown(sequenceFor(cfg)) : [];
+    AX.seq = seq; AX.seqI = 0; AX.t0 = 0; AX.times = []; ascTarget();
+  }
+  ascRender();
+}
+function ascTarget() {
+  document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
+  const m = AX.seq?.[AX.seqI]; if (m == null) return;
+  document.querySelector(`#boardWrap .n[data-midi="${m}"]:not(.ghost)`)?.classList.add("target");
+}
+function ascNoteDrill(n) {
+  const ex = ascEx(), pc = mod12(n.midi);
+  if (ex === "find") {
+    const T = AX.task; if (!T) return;
+    const ok = pc === T.pc && n.midi >= T.lo && n.midi <= T.hi;
+    if (ok) {
+      AX.right++; AX.streak++; AX.best = Math.max(AX.best, AX.streak); AX.times.push((performance.now() - AX.t0) / 1000);
+      ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone");
+      ascReveal(T);
+      AX.task = null; ascRender(); setTimeout(() => { if (ASC.on && ascEx() === "find") ascNewTask(); }, 1400);
+    } else { AX.wrong++; AX.streak = 0; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender(); }
+    return;
+  }
+  const want = AX.seq?.[AX.seqI]; if (want == null) return;
+  if (n.midi === want) {
+    if (!AX.t0) AX.t0 = n.t; AX.times.push(n.t); AX.right++; AX.seqI++;
+    ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone");
+    if (AX.seqI >= AX.seq.length) { AX.done = { secs: n.t - AX.t0, wrong: AX.wrong, even: ascEven(AX.times) }; AX.laps.push(AX.done); if (AX.laps.length > 8) AX.laps.shift(); AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0; }
+    ascTarget();
+  } else if (mod12(n.midi) !== mod12(AX.seq[Math.max(0, AX.seqI - 1)] ?? -1)) { AX.wrong++; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); }
+  ascRender();
+}
+// dopo la risposta: dove sta la nota su quella corda (pieno) e sulle altre (anello), anche se non è nella scala
+function ascReveal(T) {
+  const wrap = $("boardWrap"), g = wrap._geo, svg = wrap.querySelector("svg"); if (!g || !svg) return;
+  g.midi.forEach((open, s) => { for (let f = 0; f <= g.maxF; f++) if (mod12(open + f) === T.pc) {
+    const [x, y] = g.at(g.noteU(f), g.sy(s)), el = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    el.setAttribute("class", "live-hit reveal-hit " + (s === T.s ? "tone" : "in")); el.setAttribute("transform", `translate(${x},${y})`);
+    el.innerHTML = `<circle r="${g.R + 2}"/><text>${T.name}</text>`; svg.appendChild(el); setTimeout(() => el.remove(), 1400);
+  } });
+}
+// regolarità: quanto variano gli intervalli fra le note (0% = perfettamente regolare)
+function ascEven(ts) {
+  if (ts.length < 3) return null;
+  const d = ts.slice(1).map((t, i) => t - ts[i]), m = d.reduce((a, b) => a + b, 0) / d.length;
+  const sd = Math.sqrt(d.reduce((a, b) => a + (b - m) * (b - m), 0) / d.length);
+  return Math.round(sd / m * 100);
+}
+
+// ---- avvio, arresto, calibrazione ----
+async function ascStart() {
+  try { await ascCapture(); } catch (e) { $("ascMsg").textContent = "Ingresso non disponibile: " + e.message; return; }
+  ascReset(); ASC.on = true; ASC.listen = true;
+  AX.chords = []; AX.lap = ascEmpty(); AX.total = ascEmpty(); AX.laps = []; AX.right = AX.wrong = AX.streak = 0; AX.times = []; AX.task = null; AX.done = null; AX.lastSeg = -1;
+  $("ascHist").innerHTML = ""; $("ascMsg").textContent = st.ascLat == null && ASC.ctx !== "drill" ? "Consiglio: calibra il ritardo una volta (in Impostazioni dell'ascolto), così i battiti contano giusti." : "";
+  ASC.onNote = ASC.ctx === "prog" ? ascNoteProg : ASC.ctx === "player" ? ascNotePlayer : ascNoteDrill;
+  if (ASC.ctx === "prog" && playing !== "main") btStart();
+  if (ASC.ctx === "drill") ascNewTask();
+  ascRender();
+}
+function ascStop() {
+  if (!ASC.on) return;
+  ASC.on = false; ASC.listen = false; ASC.onNote = null; ascLive(null);
+  if (ASC.ctx === "prog") { ascCloseLap(); if (playing === "main") stopAll(); }
+  $("boardWrap").classList.remove("asc-hide"); document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
+  ascRelease(); ascRender();
+}
+async function ascCalibrate() {
+  try { await ascCapture(); } catch (e) { $("ascMsg").textContent = "Ingresso non disponibile: " + e.message; return; }
+  const wasOn = ASC.on; if (wasOn) ascStop(); if (playing === "main") stopAll();
+  await ascCapture();
+  const c = ac(), beat = 0.6, t0 = c.currentTime + 0.5, times = [];
+  const click = (t, hi) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = hi ? 2600 : 2000;
+    o.connect(g).connect(c.destination); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); o.start(t); o.stop(t + 0.05); };
+  for (let i = 0; i < 12; i++) { click(t0 + i * beat, i < 4); if (i >= 4) times.push(t0 + i * beat); }
+  $("ascLatMsg").textContent = "Dopo i 4 colpi acuti suona una nota qualsiasi su ognuno degli 8 colpi.";
+  const got = []; ascReset(); ASC.listen = true; ASC.onNote = n => got.push(n.t);
+  await new Promise(r => setTimeout(r, (0.5 + 12 * beat + 0.8) * 1000));
+  ASC.listen = false; ASC.onNote = null; ascRelease();
+  const d = times.map(tc => { const t = got.find(x => x > tc - 0.05 && x < tc + 0.6); return t == null ? null : (t - tc) * 1000; }).filter(v => v != null);
+  if (d.length < 5) { $("ascLatMsg").textContent = `Ho sentito solo ${d.length} note su 8: riprova suonando un po' più forte.`; return; }
+  d.sort((a, b) => a - b); const med = d[Math.floor(d.length / 2)], mad = d.map(v => Math.abs(v - med)).sort((a, b) => a - b)[Math.floor(d.length / 2)];
+  st.ascLat = Math.round(med); save();
+  $("ascLatMsg").textContent = `Ritardo misurato: ${st.ascLat} ms (±${Math.round(mad)} ms, ${d.length} note su 8). Salvato su questo dispositivo.`;
+  ascRender();
+}
+
+// ---- pannello unico "Suona e ascolta": si sposta nella pagina giusta (Progressione, Pratica → Suona, Player) ----
+function ascPanelBuild() {
+  const sec = document.createElement("section");
+  sec.className = "panel asc-panel"; sec.id = "ascPanel"; sec.setAttribute("aria-label", "Suona e ascolta"); sec.hidden = true;
+  sec.innerHTML = `<div class="asc-head"><h2>Suona e ascolta</h2><button class="btn primary" id="ascGo" aria-pressed="false">Suona e ascolta</button></div>
+    <label class="field"><span class="label">Esercizio</span><select id="ascExSel"></select></label>
+    <p class="hint asc-goal" id="ascGoal"></p>
+    <div class="asc-task" id="ascTask" hidden></div>
+    <div class="asc-live"><div class="asc-note" id="ascNote">–<small>&nbsp;</small></div><div class="asc-meter" aria-hidden="true"><i id="ascMeter"></i></div></div>
+    <div class="asc-hist" id="ascHist" aria-label="Ultime note suonate"></div>
+    <div class="asc-score" id="ascScore"></div>
+    <p class="hint" id="ascTotal"></p>
+    <ul class="asc-laps" id="ascLaps"></ul>
+    <p class="hint" id="ascMsg"></p>
+    <details class="asc-set"><summary>Impostazioni dell'ascolto</summary>
+      <div class="fields">
+        <label class="field"><span class="label">Ingresso</span><select id="ascIn"><option value="">Predefinito del sistema</option></select></label>
+        <div class="field"><span class="label">Ritardo</span><button class="btn" id="ascCal">Calibra il ritardo</button></div>
+      </div>
+      <p class="hint" id="ascLatMsg"></p>
+      <p class="hint">Con il Matribox collegato via USB scegli il suo ingresso: arriva solo la chitarra, la base non rientra. Col microfono del dispositivo usa le cuffie, altrimenti sente anche la base. Il riconoscimento segue una nota alla volta: suona note singole, non accordi.</p>
+    </details>`;
+  return sec;
+}
+function ascPlace() {
+  if (!ASC) return;                                       // non ancora pronto (primo disegno della pagina)
+  let sec = $("ascPanel");
+  if (!sec) {
+    sec = ascPanelBuild(); document.querySelector("main").append(sec);
+    $("ascGo").addEventListener("click", () => ASC.on ? ascStop() : ascStart());
+    $("ascExSel").addEventListener("change", e => { st["ascEx_" + ASC.ctx] = e.target.value; save(); if (ASC.on) { ascStop(); ascStart(); } else ascRender(); });
+    $("ascIn").addEventListener("change", e => { st.ascIn = e.target.value; save(); const on = ASC.on; if (on) ascStop(); ascRelease(); if (on) ascStart(); });
+    $("ascCal").addEventListener("click", ascCalibrate);
+    if (MIC_OK && navigator.mediaDevices?.enumerateDevices) ascDevices().catch(() => {});
+  }
+  const ctx = st.tab === "prog" ? "prog" : st.tab === "drill" ? "drill" : st.tab === "player" && PL.audio ? "player" : null;
+  if (ctx !== ASC.ctx && ASC.on) ascStop();
+  ASC.ctx = ctx; sec.hidden = !ctx;
+  if (!ctx) return;
+  const anchor = ctx === "prog" ? $("btPanel") : ctx === "drill" ? document.querySelector('section[aria-label="Manico"]') : $("plPlayPanel");
+  if (anchor && sec.previousElementSibling !== anchor) anchor.after(sec);
+  // il manico si ridisegna dopo: scala e cerchio della prossima nota si aggiornano subito dopo
+  if (ctx === "drill" && ASC.on) setTimeout(() => {
+    if (ascEx() === "scale") { const seq = current.cfg?.notes?.length ? upDown(sequenceFor(current.cfg)) : []; if (seq.join() !== (AX.seq || []).join()) { AX.seq = seq; AX.seqI = 0; AX.t0 = 0; AX.times = []; } ascTarget(); ascRender(); }
+  }, 0);
+  ascRender();
+}
+function ascRender() {
+  if (!$("ascPanel") || !ASC.ctx) return;
+  const ex = ascEx(), list = ASC_EX[ASC.ctx];
+  const sel = $("ascExSel"); if (sel.dataset.ctx !== ASC.ctx) { sel.innerHTML = list.map(([v, n]) => `<option value="${v}">${n}</option>`).join(""); sel.dataset.ctx = ASC.ctx; }
+  sel.value = ex;
+  $("ascGo").textContent = ASC.on ? "■ Smetti di ascoltare" : ASC.ctx === "prog" ? "▶ Suona sulla base" : ASC.ctx === "player" ? "Suona sul brano" : "▶ Comincia";
+  $("ascGo").setAttribute("aria-pressed", String(ASC.on));
+  $("ascGoal").textContent = ASC_GOAL[ex] + (ASC.ctx === "player" && !PL.chords ? " Prima servono gli accordi del brano." : "");
+  const L = st.ascLat == null ? "non calibrato" : `${st.ascLat} ms`;
+  if (!$("ascLatMsg").textContent || /^Ritardo (attuale|non)/.test($("ascLatMsg").textContent)) $("ascLatMsg").textContent = st.ascLat == null ? "Ritardo non calibrato." : `Ritardo attuale: ${L}.`;
+  const stat = (v, k) => `<div class="asc-stat"><b>${v}</b><span>${k}</span></div>`;
+  const task = $("ascTask"); task.hidden = true;
+  if (ASC.ctx === "drill") {
+    if (ex === "find") {
+      task.hidden = !ASC.on;
+      task.innerHTML = AX.task ? `Suona <b>${AX.task.name}</b> sulla ${AX.task.str}` : ASC.on ? "Giusto!" : "";
+      const avg = AX.times.length ? (AX.times.reduce((a, b) => a + b, 0) / AX.times.length).toFixed(1).replace(".", ",") + " s" : "–";
+      $("ascScore").innerHTML = stat(AX.right, "giuste") + stat(AX.wrong, "sbagliate") + stat(AX.best, "di fila, record") + stat(avg, "tempo medio");
+      $("ascTotal").textContent = ""; $("ascLaps").innerHTML = "";
+    } else {
+      task.hidden = !ASC.on;
+      const m = AX.seq?.[AX.seqI];
+      task.innerHTML = m != null ? `Prossima: <b>${ascNm(m)}</b> <span class="hint">(${AX.seqI + 1} di ${AX.seq.length})</span>` : "Scegli una scala con delle note.";
+      $("ascScore").innerHTML = stat(AX.seq ? `${AX.seqI}/${AX.seq.length}` : "–", "note del giro") + stat(AX.wrong, "sbagliate in questo giro") +
+        (AX.done ? stat(AX.done.secs.toFixed(1).replace(".", ",") + " s", "ultimo giro") + stat(AX.done.even == null ? "–" : AX.done.even + "%", "irregolarità (meno è meglio)") : "");
+      $("ascTotal").textContent = "";
+      $("ascLaps").innerHTML = AX.laps.slice().reverse().map((l, i) => `<li><b>Giro ${AX.laps.length - i}</b>${l.secs.toFixed(1).replace(".", ",")} s · ${l.wrong} sbagliate · irregolarità ${l.even ?? "–"}%</li>`).join("");
+    }
+    return;
+  }
+  const sc = AX.lap || ascEmpty(), tot = AX.total || ascEmpty();
+  const goal = {
+    free: [["Nel modo", ascPct(sc.inMode, sc.notes)], ["Note dell'accordo", ascPct(sc.tone, sc.notes)], ["Sui battiti, note dell'accordo", ascPct(sc.beatTone, sc.beats)]],
+    change: [["Cambi centrati", `${sc.changeHit} di ${sc.changes}`], ["Nel modo", ascPct(sc.inMode, sc.notes)], ["Note dell'accordo", ascPct(sc.tone, sc.notes)]],
+    char: [["Nota caratteristica", `${sc.charHit} di ${sc.chordsSeen}`], ["Nel modo", ascPct(sc.inMode, sc.notes)], ["Note dell'accordo", ascPct(sc.tone, sc.notes)]],
+    arp: [["Note dell'accordo", ascPct(sc.tone, sc.notes)], ["Sui battiti", ascPct(sc.beatTone, sc.beats)], ["Note suonate", sc.notes]],
+    tones: [["Note dell'accordo", ascPct(sc.tone, sc.notes)], ["Nel modo", ascPct(sc.inMode, sc.notes)], ["Note suonate", sc.notes]],
+  }[ex] || [];
+  if (ASC.ctx === "player") goal.splice(2, 1, ["Note suonate", sc.notes]);
+  $("ascScore").innerHTML = goal.map(([k, v]) => stat(v, k)).join("");
+  $("ascTotal").textContent = tot.notes ? `Da quando hai iniziato: ${tot.notes} note, nel modo ${ascPct(tot.inMode, tot.notes)}, note dell'accordo ${ascPct(tot.tone, tot.notes)}.` : "";
+  $("ascLaps").innerHTML = ASC.ctx === "prog" ? AX.laps.slice().reverse().map((l, i) => {
+    const main = ex === "change" ? `cambi ${l.changeHit}/${l.changes}` : ex === "char" ? `caratteristica ${l.charHit}/${l.chordsSeen}` : ex === "arp" ? `note dell'accordo ${ascPct(l.tone, l.notes)}` : `nel modo ${ascPct(l.inMode, l.notes)}`;
+    return `<li><b>Giro ${AX.laps.length - i}</b>${l.notes} note, ${main}</li>`;
+  }).join("") : "";
+}
+// per le prove senza microfono: ?prova nell'indirizzo espone l'ingresso dell'ascolto
+if (PERSONALE && /[?&]prova\b/.test(location.search)) window.__asc = { feed: (t, x) => ascBlock(t, x), ASC, AX, start: ascStart, place: ascPlace, ctx: () => ac() };
 window.addEventListener("hashchange", () => {
   const t = HASH_TAB[location.hash] || st.tab;
   if (t !== st.tab) { stopAll(); st.tab = t; renderAll(); }
