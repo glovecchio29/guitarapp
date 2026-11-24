@@ -872,6 +872,7 @@ svg.mini.mbsvg .fretnum.fn-c { font-size: 11.5px; font-weight: 700; fill: var(--
 #voMic[aria-pressed="true"] { background: #e5484d; border-color: #e5484d; color: #fff; }
 @media (max-width: 640px) { .vo-cv { height: 200px; } }
 .plm-off { display: none !important; }
+html[data-ed="fretroot"] [data-only="personale"] { display: none !important; }
 #plChTools { flex-wrap: nowrap; align-items: center; gap: 6px; }
 #plChTools details.more > summary { display: inline-flex; align-items: center; justify-content: center; font-size: 18px; letter-spacing: 1px; }
 .pl-modes { display: flex; width: 100%; }
@@ -1112,7 +1113,7 @@ details.more > summary::-webkit-details-marker { display: none; }
       </section>
 
       <div class="seg pl-modes" id="plModes" role="tablist" aria-label="Cosa fare con il brano">
-        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata <span class="badge-beta">beta</span></button><button role="tab" data-plm="voice">Canta</button><button role="tab" data-plm="video">Video</button>
+        <button role="tab" data-plm="chords">Accordi</button><button role="tab" data-plm="tab">Tab</button><button role="tab" data-plm="strum">Pennata <span class="badge-beta">beta</span></button><button role="tab" data-plm="voice" data-only="personale">Canta</button><button role="tab" data-plm="video">Video</button>
       </div>
       <section class="panel pl-prep" id="plPrep" aria-label="Prepara il brano" hidden></section>
       <div class="pl-nowmini" id="plNowMini" hidden><span class="label">Adesso</span><b id="nmCur">–</b><span class="label">Poi</span><b id="nmNext">–</b><small id="nmIn"></small></div>
@@ -1163,7 +1164,7 @@ details.more > summary::-webkit-details-marker { display: none; }
 
       <section class="panel" aria-label="Tablatura" id="plTab" data-plm-of="tab">
         <div class="card-head"><h2>Tablatura</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
-          <div class="grp"><button class="btn" type="button" id="tbPasteBtn" aria-expanded="false">Incolla una tab</button><label class="btn file-btn">Importa Guitar Pro, MusicXML o PDF<input type="file" id="tbFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl,.pdf,application/pdf"></label></div></div>
+          <div class="grp"><button class="btn" type="button" id="tbPasteBtn" aria-expanded="false" data-only="personale">Incolla una tab</button><label class="btn file-btn"><span id="tbFileLbl">Importa Guitar Pro, MusicXML o PDF</span><input type="file" id="tbFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl,.pdf,application/pdf"></label></div></div>
         <p class="hint" id="tbHint">Apri il file Guitar Pro, MusicXML o il PDF della tab, oppure incolla una tab scritta a testo (come quelle di Ultimate Guitar): la tab scorre con la musica.</p>
         <div class="tb-paste" id="tbPaste" hidden>
           <label class="field"><span class="label">Tab a testo</span>
@@ -1251,7 +1252,7 @@ details.more > summary::-webkit-details-marker { display: none; }
 
       <section class="panel" aria-label="Video" id="plVideo" data-plm-of="video">
         <div class="card-head"><h2>Video</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button>
-          <div class="grp"><label class="btn file-btn" id="vdFileBtn">Apri un video<input type="file" id="vdFile" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v"></label></div></div>
+          <div class="grp"><label class="btn file-btn" id="vdFileBtn" data-only="personale">Apri un video<input type="file" id="vdFile" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v"></label></div></div>
         <form class="vd-yt" id="vdYtForm"><input type="url" id="vdYtUrl" placeholder="Link di YouTube (youtube.com/watch?v=… o youtu.be/…)" autocomplete="off"><button class="btn" type="submit">Apri</button></form>
         <p class="hint" id="vdHint">Apri un video dal dispositivo o incolla un link di YouTube: rallenta, vai avanti un fotogramma alla volta e ingrandisci la mano sul manico per vedere gli accordi.</p>
         <p class="hint help">Zoom: rotella del mouse, pizzico con due dita o i pulsanti − +; trascina per spostarti, doppio tocco per ingrandire o tornare indietro. A video fermo, le frecce ← → vanno di un fotogramma. "Segui il brano" (solo per i video dal dispositivo) fa andare il video insieme al brano aperto: velocità, salti e tratto da ripetere del lettore valgono anche per il video. Da YouTube si può guardare, rallentare e ingrandire, ma le regole di YouTube non permettono di leggerne l'audio o le immagini, quindi niente riconoscimento degli accordi dal video.</p>
@@ -1596,6 +1597,10 @@ details.more > summary::-webkit-details-marker { display: none; }
 
 
 <script>
+// EDIZIONE: "personale" = tutto, anche le parti solo mie; "fretroot" = l'app da vendere. Non cambiarla a mano: la mette crea-fretroot.sh
+const EDITION = "personale";
+const PERSONALE = EDITION === "personale";
+document.documentElement.dataset.ed = EDITION;
 (() => {
 const LETTERS = ["C","D","E","F","G","A","B"];
 const LETTER_PC = [0,2,4,5,7,9,11];
@@ -3704,7 +3709,7 @@ function singRender(force) {
       <span class="hint">Note da ${sgName(lo)} a ${sgName(hi)}</span></div>`;
   const s = (st.earStats || {}).sing || {}; let ok = 0, n = 0; Object.values(s).forEach(([a, b]) => { ok += a; n += b; });
   box.innerHTML = `<button class="btn ear-back" data-back>‹ Tutti gli esercizi</button><div class="card-head"><h2>${ex.name}</h2><span class="ear-score">${n ? `${Math.round(100 * ok / n)}% delle note prese` : ""}</span></div>
-    <p class="hint">${ex.desc}</p>${typeof MIC_OK !== "undefined" && !MIC_OK ? MIC_NOTE : ""}<p class="hint">Pronto per un brano vero? <button class="btn linkish" type="button" data-to-song>Canta con il brano</button></p>
+    <p class="hint">${ex.desc}</p>${typeof MIC_OK !== "undefined" && !MIC_OK ? MIC_NOTE : ""}${PERSONALE ? `<p class="hint">Pronto per un brano vero? <button class="btn linkish" type="button" data-to-song>Canta con il brano</button></p>` : ""}
     <details class="ear-setd"${SG.phase === "idle" ? " open" : ""}><summary>Impostazioni dell'esercizio</summary><div class="ear-set">${optsHtml}${itemsHtml}${voiceSel}</div></details>
     <div class="sg-head"><div><div class="sg-ask" id="sgAsk">Premi Inizia: senti una nota, poi cantala.</div><div class="hint" id="sgHint"></div></div>
       <div class="sg-live" id="sgLive" data-state="idle"><b id="sgNote">–</b><span id="sgCents"></span></div></div>
@@ -5124,9 +5129,15 @@ function tbScrollAnim(v, target, ms) {
   PL.tbScrollRaf = requestAnimationFrame(step);
 }
 function tbAutoUi() { $("tbAuto").checked = st.tbAuto !== false; }
+if (!PERSONALE) {                                        // Fretroot: solo Guitar Pro e MusicXML
+  $("tbFileLbl").textContent = "Importa Guitar Pro o MusicXML";
+  $("tbFile").accept = ".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl";
+  $("tbHint").textContent = "Apri il file Guitar Pro o MusicXML della tab: la tab scorre con la musica.";
+}
 function tbRestore() {
   PL.gp = null; let saved = null;
   try { saved = JSON.parse(localStorage.getItem(PL.key + ":gp") || "null"); } catch (e) {}
+  if (!PERSONALE && (saved?.pdf || saved?.tex != null)) saved = null;
   if (saved?.pdf && PL.libId) {
     const key = PL.key;
     libReq("audio", "readonly", s2 => s2.get(PL.libId + ":pdf")).then(async b => {
@@ -5139,6 +5150,8 @@ function tbRestore() {
 $("tbFile").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   const bytes = new Uint8Array(await f.arrayBuffer());
+  const isPdf = /\.pdf$/i.test(f.name) || (bytes[0] === 0x25 && bytes[1] === 0x50);
+  if (isPdf && !PERSONALE) { $("tbStatus").textContent = "Apri un file Guitar Pro o MusicXML."; return; }
   if (/\.pdf$/i.test(f.name) || (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) tbOpenPdf(bytes, f.name.replace(/\.pdf$/i, ""));
   else { PL.pdfSrc = null; tbOpen(bytes, f.name); }
 });
@@ -6543,6 +6556,7 @@ document.addEventListener("click", e => {
 // velocità/tonalità/tratti/tracce in un pannello che si apre dal lettore, e una scheda che prepara il brano da sola.
 if (!st.plMode) st.plMode = "chords";
 function plModeApply() {
+  if (!PERSONALE && st.plMode === "voice") st.plMode = "chords";   // Canta non c'è in Fretroot
   const m = st.plMode;
   document.querySelectorAll("#plModes [data-plm]").forEach(b => { const on = b.dataset.plm === m; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-selected", String(on)); });
   document.querySelectorAll("#plMain [data-plm-of]").forEach(el => el.classList.toggle("plm-off", el.dataset.plmOf !== m));
@@ -6596,7 +6610,7 @@ function plPrepRender(force) {
     <ul class="pp-list">
       ${row("chords", chS, "Accordi", `${ch ? ch.segs.filter(x => x.q !== "N").length : 0} cambi`, chS === "run" ? "li sto riconoscendo…" : chS === "todo" ? `<button class="btn" data-ppgo="detect">Riconosci</button>` : "aspetto il brano…")}
       ${row("strum", stS, "Pennate (beta)", "ricavate dal brano", stS === "run" ? "le sto ricavando…" : stS === "todo" ? `<button class="btn" data-ppgo="strum">Ricava</button>` : "dopo gli accordi")}
-      ${row("voice", voS, "Voce del cantante", `${vn} note`, voS === "run" ? "la sto ascoltando…" : `<button class="btn" data-ppgo="voice">Carica la traccia voce</button>`)}
+      ${!PERSONALE ? "" : row("voice", voS, "Voce del cantante", `${vn} note`, voS === "run" ? "la sto ascoltando…" : `<button class="btn" data-ppgo="voice">Carica la traccia voce</button>`)}
       ${row("tab", tbS, "Tablatura", gp ? esc(gp.name || "file aperto") : "", `<button class="btn" data-ppgo="tab">Importa (facoltativo)</button>`)}
     </ul>
     ${voS !== "ok" && !all ? "" : ""}`;
@@ -6802,11 +6816,13 @@ $("vdClose").addEventListener("click", () => {
 });
 function vdSave() { try { localStorage.setItem(PL.key + ":vdopt", JSON.stringify({ follow: $("vdFollow").checked, off: VD.off || 0 })); } catch (e) {} }
 // al cambio di brano: si riapre il suo video (file salvato o link)
+if (!PERSONALE) $("vdHint").textContent = "Incolla un link di YouTube: rallenta, vai avanti un fotogramma alla volta e ingrandisci la mano sul manico per vedere gli accordi.";
 async function vdRestore() {
   vdReset(); vdUi(); if (!PL.libId) return;
   const key = PL.key; let yt = null, opt = null;
   try { yt = localStorage.getItem(key + ":yt"); opt = JSON.parse(localStorage.getItem(key + ":vdopt") || "null"); } catch (e) {}
   if (yt) { $("vdYtUrl").value = "https://youtu.be/" + yt; vdOpenYt(yt, false); return; }
+  if (!PERSONALE) return;
   try { const b = await libReq("audio", "readonly", s2 => s2.get(PL.libId + ":video")); if (b && PL.key === key) { vdOpenFile(b, false); if (opt) { VD.off = opt.off || 0; $("vdFollow").checked = !!opt.follow; vdEl.muted = !!opt.follow; vdLoop(); } } } catch (e) {}
 }
 new ResizeObserver(() => { if (VD.kind) vdApply(); }).observe($("vdStage"));
