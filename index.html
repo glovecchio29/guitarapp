@@ -7910,10 +7910,16 @@ function ascInfo(a) {
 const ascRole = (I, pc) => pc === I.root ? "root" : I.tones.includes(pc) ? "tone" : pc === I.charPc ? "char" : I.map.has(pc) ? "scale" : null;
 
 // ---- nota suonata sul manico: anello verde (nel modo), pieno (nota dell'accordo), rosso (fuori) ----
-function ascHit(wrapId, midi, kind) {
+// L'app sente l'altezza, non la corda: con prefS (corda chiesta) la nota si disegna su quella corda, nell'ottava più vicina
+function ascHit(wrapId, midi, kind, prefS = null) {
   const wrap = $(wrapId), g = wrap?._geo, svg = wrap?.querySelector("svg"); if (!g || !svg) return;
-  const cands = [];
+  let cands = [];
   g.midi.forEach((open, s) => { const f = midi - open; if (f >= 0 && f <= g.maxF) cands.push({ s, f }); });
+  if (prefS != null) {
+    const onS = cands.filter(c => c.s === prefS);
+    if (onS.length) cands = onS;
+    else { const open = g.midi[prefS]; let f = mod12(midi - open); while (f + 12 <= g.maxF && Math.abs(open + f + 12 - midi) < Math.abs(open + f - midi)) f += 12; cands = [{ s: prefS, f }]; }
+  }
   if (!cands.length) return;
   const ref = g.pos ? (g.pos.lo + g.pos.hi) / 2 : wrap._lastF ?? 5;
   const inBox = g.pos ? cands.filter(c => c.f >= g.pos.lo && c.f <= g.pos.hi) : [];
@@ -7943,7 +7949,7 @@ const ASC_GOAL = {
   char: "Su ogni accordo suona almeno una volta la nota caratteristica del modo: è quella che lo distingue dai modi vicini.",
   arp: "Suona solo le note dell'accordo in corso (metti il manico su \"Arpeggio\" per vederle).",
   tones: "Segui il brano suonando solo le note dell'accordo in corso: le trovi sul manico di \"Cosa suonare\".",
-  find: "Ti chiedo una nota: trovala sul manico e suonala. Le note del manico restano nascoste finché non rispondi.",
+  find: "Ti chiedo una nota: trovala sul manico e suonala. Le note del manico restano nascoste finché non rispondi. L'app sente la nota ma non la corda: suonala davvero sulla corda chiesta, vale come giusta anche se la stessa nota sta su un'altra corda.",
   scale: "Suona la scala del box salendo e poi scendendo, una nota alla volta: la prossima è cerchiata sul manico.",
 };
 const ascPct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
@@ -7998,7 +8004,8 @@ function ascNewTask() {
   const ex = ascEx(), cfg = current.cfg;
   if (ex === "find") {
     const tun = tuningObj();
-    let pc; do { pc = Math.floor(Math.random() * 12); } while (AX.task && pc === AX.task.pc);
+    let pc; do { pc = Math.floor(Math.random() * 12); } while (pc === AX.lastPc);
+    AX.lastPc = pc;
     const s = Math.floor(Math.random() * tun.midi.length);
     const nS = tun.midi.length, sn = noteName(pcRoot(mod12(tun.midi[s])));
     AX.task = { pc, s, lo: tun.midi[s], hi: tun.midi[s] + (+st.frets), name: noteName(pcRoot(pc)), str: `${nS - s}ª corda (${sn}${s === 0 && mod12(tun.midi[nS - 1]) === mod12(tun.midi[0]) ? " grave" : s === nS - 1 && mod12(tun.midi[0]) === mod12(tun.midi[s]) ? " cantino" : ""})` };
@@ -8019,10 +8026,12 @@ function ascNoteDrill(n) {
   const ex = ascEx(), pc = mod12(n.midi);
   if (ex === "find") {
     const T = AX.task; if (!T) return;
-    const ok = pc === T.pc && n.midi >= T.lo && n.midi <= T.hi;
+    // vale la nota giusta in qualsiasi ottava: la stessa altezza sta su più corde e anche l'ottava può sfuggire,
+    // quindi non si può sapere su che corda l'hai suonata. La disegno sulla corda chiesta.
+    const ok = pc === T.pc;
     if (ok) {
       AX.right++; AX.streak++; AX.best = Math.max(AX.best, AX.streak); AX.times.push((performance.now() - AX.t0) / 1000);
-      ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone");
+      ascHit("boardWrap", n.midi, "tone", T.s); ascHistPush(n.midi, "tone");
       ascReveal(T);
       AX.task = null; ascRender(); setTimeout(() => { if (ASC.on && ascEx() === "find") ascNewTask(); }, 1400);
     } else { AX.wrong++; AX.streak = 0; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender(); }
