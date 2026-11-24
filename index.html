@@ -7875,10 +7875,12 @@ function ascFrame(tEnd) {
   ascLive(midi, f);
   // nota confermata dopo 3 passi (~32 ms), solo se è cominciata con un attacco: le corde che vibrano per simpatia non contano
   if (ASC.stable === 3 && (midi !== ASC.lastMidi || ASC.reattack) && tEnd - ASC.attT <= 0.15) {
-    ASC.lastMidi = midi; ASC.reattack = false; ASC.confT = tEnd;
-    const n = { midi, t: tEnd - 2048 / ASC.sr, f };
+    ASC.lastMidi = midi; ASC.reattack = false; ASC.confT = tEnd; ASC.heldSent = false; ASC.noteT = tEnd - 2048 / ASC.sr;
+    const n = { midi, t: ASC.noteT, f };
     if (ASC.onNote) ASC.onNote(n);
   }
+  // nota tenuta (~150 ms): per le risposte degli esercizi, così i rumori brevi (dito che si appoggia, corda sfiorata) non contano
+  if (midi === ASC.lastMidi && ASC.stable === 14 && !ASC.heldSent) { ASC.heldSent = true; if (ASC.onHeld) ASC.onHeld({ midi, t: ASC.noteT, f }); }
   if (onset && midi === ASC.lastMidi && tEnd - ASC.confT > 0.09) { ASC.reattack = true; ASC.stable = 0; }
 }
 let ascMeterT = 0, ascLiveT = 0;
@@ -7890,7 +7892,7 @@ const ascNm = m => noteName(pcRoot(mod12(m))) + (Math.floor(m / 12) - 1);
 function ascLive(midi, f) {
   const now = performance.now(); if (midi != null && now - ascLiveT < 60) return; ascLiveT = now;
   const el = $("ascNote"); if (!el) return;
-  el.innerHTML = midi == null ? "–<small>&nbsp;</small>" : `${ascNm(midi)}<small>${f.toFixed(1)} Hz</small>`;
+  el.innerHTML = midi == null ? "–<small>&nbsp;</small>" : `${noteName(pcRoot(mod12(midi)))}<small>${ascNm(midi)} · ${f.toFixed(1).replace(".", ",")} Hz</small>`;
 }
 
 // ---- ruolo di una nota rispetto all'accordo (dall'esercizio Pratica di Matribox) ----
@@ -8022,9 +8024,9 @@ function ascTarget() {
   const m = AX.seq?.[AX.seqI]; if (m == null) return;
   document.querySelector(`#boardWrap .n[data-midi="${m}"]:not(.ghost)`)?.classList.add("target");
 }
-function ascNoteDrill(n) {
-  const ex = ascEx(), pc = mod12(n.midi);
-  if (ex === "find") {
+function ascHeldDrill(n) {
+  const pc = mod12(n.midi);
+  if (ascEx() === "find") {
     const T = AX.task; if (!T) return;
     // vale la nota giusta in qualsiasi ottava: la stessa altezza sta su più corde e anche l'ottava può sfuggire,
     // quindi non si può sapere su che corda l'hai suonata. La disegno sulla corda chiesta.
@@ -8034,16 +8036,24 @@ function ascNoteDrill(n) {
       ascHit("boardWrap", n.midi, "tone", T.s); ascHistPush(n.midi, "tone");
       ascReveal(T);
       AX.task = null; ascRender(); setTimeout(() => { if (ASC.on && ascEx() === "find") ascNewTask(); }, 1400);
-    } else { AX.wrong++; AX.streak = 0; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender(); }
+    } else { AX.wrong++; AX.streak = 0; AX.heard = { name: noteName(pcRoot(pc)), full: ascNm(n.midi), at: performance.now() }; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender(); setTimeout(ascRender, 2600); }
     return;
   }
+  // scala: le note giuste contano subito (si può suonare veloce), quelle sbagliate solo se tenute
+  const want = AX.seq?.[AX.seqI], prev = AX.seq?.[AX.seqI - 1];
+  if (want == null || n.midi === want || n.midi === prev) return;
+  AX.wrong++; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender();
+}
+function ascNoteDrill(n) {
+  const ex = ascEx(), pc = mod12(n.midi);
+  if (ex === "find") return;                              // in "Trova la nota" decide la nota tenuta (ascHeldDrill)
   const want = AX.seq?.[AX.seqI]; if (want == null) return;
   if (n.midi === want) {
     if (!AX.t0) AX.t0 = n.t; AX.times.push(n.t); AX.right++; AX.seqI++;
     ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone");
     if (AX.seqI >= AX.seq.length) { AX.done = { secs: n.t - AX.t0, wrong: AX.wrong, even: ascEven(AX.times) }; AX.laps.push(AX.done); if (AX.laps.length > 8) AX.laps.shift(); AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0; }
     ascTarget();
-  } else if (mod12(n.midi) !== mod12(AX.seq[Math.max(0, AX.seqI - 1)] ?? -1)) { AX.wrong++; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); }
+  }
   ascRender();
 }
 // dopo la risposta: dove sta la nota su quella corda (pieno) e sulle altre (anello), anche se non è nella scala
@@ -8070,13 +8080,14 @@ async function ascStart() {
   AX.chords = []; AX.lap = ascEmpty(); AX.total = ascEmpty(); AX.laps = []; AX.right = AX.wrong = AX.streak = 0; AX.times = []; AX.task = null; AX.done = null; AX.lastSeg = -1;
   $("ascHist").innerHTML = ""; $("ascMsg").textContent = st.ascLat == null && ASC.ctx !== "drill" ? "Consiglio: calibra il ritardo una volta (in Impostazioni dell'ascolto), così i battiti contano giusti." : "";
   ASC.onNote = ASC.ctx === "prog" ? ascNoteProg : ASC.ctx === "player" ? ascNotePlayer : ascNoteDrill;
+  ASC.onHeld = ASC.ctx === "drill" ? ascHeldDrill : null; AX.heard = null;
   if (ASC.ctx === "prog" && playing !== "main") btStart();
   if (ASC.ctx === "drill") ascNewTask();
   ascRender();
 }
 function ascStop() {
   if (!ASC.on) return;
-  ASC.on = false; ASC.listen = false; ASC.onNote = null; ascLive(null);
+  ASC.on = false; ASC.listen = false; ASC.onNote = null; ASC.onHeld = null; ascLive(null);
   if (ASC.ctx === "prog") { ascCloseLap(); if (playing === "main") stopAll(); }
   $("boardWrap").classList.remove("asc-hide"); document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
   ascRelease(); ascRender();
@@ -8163,7 +8174,8 @@ function ascRender() {
   if (ASC.ctx === "drill") {
     if (ex === "find") {
       task.hidden = !ASC.on;
-      task.innerHTML = AX.task ? `Suona <b>${AX.task.name}</b> sulla ${AX.task.str}` : ASC.on ? "Giusto!" : "";
+      const heard = AX.heard && performance.now() - AX.heard.at < 2500 && AX.task ? `<br><span class="hint">Ho sentito ${AX.heard.name} (${AX.heard.full}): non è ${AX.task.name}. Riprova.</span>` : "";
+      task.innerHTML = AX.task ? `Suona <b>${AX.task.name}</b> sulla ${AX.task.str} <span class="hint">(qualsiasi ottava)</span>${heard}` : ASC.on ? "Giusto!" : "";
       const avg = AX.times.length ? (AX.times.reduce((a, b) => a + b, 0) / AX.times.length).toFixed(1).replace(".", ",") + " s" : "–";
       $("ascScore").innerHTML = stat(AX.right, "giuste") + stat(AX.wrong, "sbagliate") + stat(AX.best, "di fila, record") + stat(avg, "tempo medio");
       $("ascTotal").textContent = ""; $("ascLaps").innerHTML = "";
