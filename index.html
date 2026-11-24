@@ -8014,12 +8014,23 @@ function ascNotePlayer(n) {
   ascHit("plBoardWrap", n.midi, kind); ascHistPush(n.midi, kind); ascRender();
 }
 // Pratica → Suona
-// i 7 modi della scala maggiore, con la nota caratteristica
-const DR_MODES = [["major", "ionico", "7"], ["dorian", "dorico", "6"], ["phryg", "frigio", "b2"], ["lydian", "lidio", "#4"], ["mixo", "misolidio", "b7"], ["minor", "eolio", "b6"], ["locrian", "locrio", "b5"]];
+// i modi delle tre scale madri, con la nota caratteristica (quella che li distingue dal modo più vicino)
+const DR_MODES = [
+  ["major", "ionico", "7", "maj"], ["dorian", "dorico", "6", "maj"], ["phryg", "frigio", "b2", "maj"], ["lydian", "lidio", "#4", "maj"],
+  ["mixo", "misolidio", "b7", "maj"], ["minor", "eolio", "b6", "maj"], ["locrian", "locrio", "b5", "maj"],
+  ["harm", "minore armonica", "7", "harm"], ["locn6", "locrio ♮6", "6", "harm"], ["ion5", "ionico ♯5", "#5", "harm"], ["dor4", "dorico ♯4", "#4", "harm"],
+  ["phrdom", "frigio dominante", "3", "harm"], ["lyd2", "lidio ♯2", "#2", "harm"], ["sloc7", "superlocrio ♭♭7", "bb7", "harm"],
+  ["mel", "minore melodica", "7", "mel"], ["dorb2", "dorico ♭2", "b2", "mel"], ["lydaug", "lidio aumentato", "#5", "mel"], ["lyddom", "lidio dominante", "#4", "mel"],
+  ["mixb6", "misolidio ♭6", "b6", "mel"], ["locn2", "locrio ♮2", "2", "mel"], ["altered", "superlocrio (alterato)", "3", "mel"],
+];
+const DR_FAMS = [["maj", "Scala maggiore (7 modi)"], ["harm", "Minore armonica (7 modi)"], ["mel", "Minore melodica (7 modi)"], ["all", "Tutti (21 modi)"]];
+const drModes = () => { const f = st.drillFam || "maj"; return f === "all" ? DR_MODES : DR_MODES.filter(m => m[3] === f); };
 const DR_CHORDS = [["maj", "major"], ["min", "minor"], ["dom7", "mixo"], ["maj7", "major"], ["m7", "dorian"], ["m7b5", "locrian"], ["dim", "locrian"]];
 const DR_IV_DEG = { 0: "1", 3: "b3", 4: "3", 6: "b5", 7: "5", 8: "#5", 9: "6", 10: "b7", 11: "7" };
 const drRand = n => Math.floor(Math.random() * n);
-function drPickMode() { let i; do { i = drRand(DR_MODES.length); } while (DR_MODES.length > 1 && i === AX.lastMode); AX.lastMode = i; return DR_MODES[i]; }
+// nome scritto secondo il modo, con accanto quello comune quando è scomodo (Mi♯ = Fa, Re♯♯ = Mi)
+const drNm = n => { const a = noteName(n), b = noteName(pcRoot(n.pc)); return a === b || !/♯♯|♭♭|Mi♯|Si♯|Fa♭|Do♭/.test(a) ? a : `${a} (= ${b})`; };
+function drPickMode() { const L = drModes(); let m; do { m = L[drRand(L.length)]; } while (L.length > 1 && m[0] === AX.lastMode); AX.lastMode = m[0]; return m; }
 function drPickRoot() { let r; do { r = drRand(12); } while (r === AX.lastRoot); AX.lastRoot = r; return r; }
 const drOrd = d => { const n = +d.replace(/[^\d]/g, ""); return `${n}º grado`; };
 function ascNewTask() {
@@ -8046,10 +8057,10 @@ function ascNewTask() {
         wrap.classList.add("asc-hide");
         if (ex === "char") {
           const n = spell(r.li, r.pc, cd);
-          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `Suona la nota caratteristica di <b>${title}</b>`, answer: `la ${degLabel(cd)}: ${noteName(n)}` };
+          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `Suona la nota caratteristica di <b>${title}</b>`, answer: `la ${degLabel(cd)}: ${drNm(n)}` };
         } else if (ex === "degree") {
           const d = scale.deg[1 + drRand(scale.deg.length - 1)], n = spell(r.li, r.pc, d);
-          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `In <b>${title}</b> suona la <b>${degLabel(d)}</b> <span class="hint">(${drOrd(d)})</span>`, answer: noteName(n) };
+          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `In <b>${title}</b> suona la <b>${degLabel(d)}</b> <span class="hint">(${drOrd(d)})</span>`, answer: drNm(n) };
         } else {
           const ns = scale.deg.map(d => spell(r.li, r.pc, d));
           AX.task = { kind: "set", pcs: ns.map(n => n.pc), names: ns.map(n => noteName(n)), found: new Set(), html: `Suona tutte le note di <b>${title}</b>`, answer: ns.map(n => noteName(n)).join(" ") };
@@ -8207,6 +8218,7 @@ function ascPanelBuild() {
   sec.className = "panel asc-panel"; sec.id = "ascPanel"; sec.setAttribute("aria-label", "Suona e ascolta"); sec.hidden = true;
   sec.innerHTML = `<div class="asc-head"><h2>Suona e ascolta</h2><button class="btn primary" id="ascGo" aria-pressed="false">Suona e ascolta</button></div>
     <div class="fields asc-fields"><label class="field"><span class="label">Esercizio</span><select id="ascExSel"></select></label>
+      <label class="field" id="ascFamF" hidden><span class="label">Modi</span><select id="ascFam"></select></label>
       <label class="field" id="ascLevelF" hidden><span class="label">Sul manico</span><select id="ascLevel"><option value="box">Tutto il box</option><option value="roots">Solo le toniche (a memoria)</option></select></label></div>
     <p class="hint asc-goal" id="ascGoal"></p>
     <div class="asc-task" id="ascTask" hidden></div>
@@ -8235,6 +8247,8 @@ function ascPlace() {
     $("ascExSel").addEventListener("change", e => { st["ascEx_" + ASC.ctx] = e.target.value; save(); if (ASC.on) { ascStop(); ascStart(); } else { if (DRILL_OV) { DRILL_OV = null; renderAll(); } ascRender(); } });
     $("ascIn").addEventListener("change", e => { st.ascIn = e.target.value; save(); const on = ASC.on; if (on) ascStop(); ascRelease(); if (on) ascStart(); });
     $("ascCal").addEventListener("click", ascCalibrate);
+    $("ascFam").innerHTML = DR_FAMS.map(([v, n]) => `<option value="${v}">${n}</option>`).join("");
+    $("ascFam").addEventListener("change", e => { st.drillFam = e.target.value; save(); AX.lastMode = null; if (ASC.on && ["modebox", "char", "degree", "notes"].includes(ascEx())) ascNewTask(); });
     $("ascLevel").addEventListener("change", e => { st.drillLevel = e.target.value; save(); if (ASC.on && ascEx() === "modebox") $("boardWrap").classList.toggle("asc-hide", st.drillLevel === "roots"), $("boardWrap").classList.toggle("show-roots", st.drillLevel === "roots"); });
     if (MIC_OK && navigator.mediaDevices?.enumerateDevices) ascDevices().catch(() => {});
   }
@@ -8264,6 +8278,7 @@ function ascRender() {
   const task = $("ascTask"); task.hidden = true;
   if (ASC.ctx === "drill") {
     $("ascLevelF").hidden = ex !== "modebox"; $("ascLevel").value = st.drillLevel === "roots" ? "roots" : "box";
+    $("ascFamF").hidden = !["modebox", "char", "degree", "notes"].includes(ex); $("ascFam").value = st.drillFam || "maj";
     const T = AX.task;
     if (T && (T.kind === "one" || T.kind === "set") && ["char", "degree", "notes", "chordnotes"].includes(ex)) {
       task.hidden = !ASC.on;
@@ -8286,7 +8301,7 @@ function ascRender() {
       task.hidden = !ASC.on;
       const m = AX.seq?.[AX.seqI];
       const head = ex === "modebox" && T?.title ? `Suona <b>${T.title}</b> <span class="hint">${T.pos || ""}</span><br>` : "";
-      const sp = current.cfg?.notes?.find(x => x.pc === mod12(m ?? 0)), nm = m == null ? "" : sp ? noteName(sp) + (Math.floor(m / 12) - 1) : ascNm(m);
+      const sp = current.cfg?.notes?.find(x => x.pc === mod12(m ?? 0)), nm = m == null ? "" : sp ? drNm(sp).replace(/^(\S+)/, `$1${Math.floor(m / 12) - 1}`) : ascNm(m);
       task.innerHTML = head + (m != null ? `Prossima: <b>${nm}</b> <span class="hint">(${AX.seqI + 1} di ${AX.seq.length})</span>` : ex === "modebox" ? "Bravo! Arriva il prossimo modo…" : "Scegli una scala con delle note.");
       $("ascScore").innerHTML = stat(AX.seq ? `${AX.seqI}/${AX.seq.length}` : "–", "note del giro") + stat(AX.wrong, "sbagliate in questo giro") +
         (AX.done ? stat(AX.done.secs.toFixed(1).replace(".", ",") + " s", "ultimo giro") + stat(AX.done.even == null ? "–" : AX.done.even + "%", "irregolarità (meno è meglio)") : "");
