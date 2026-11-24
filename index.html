@@ -1075,6 +1075,9 @@ svg .live-hit.reveal-hit { animation-duration: 1.4s; }
 svg .n.target circle { stroke: #fff; stroke-width: 4; stroke-dasharray: 4 3; }
 .board-wrap.asc-hide svg .n { opacity: 0; }
 .board-wrap.asc-hide svg .n.reveal { opacity: 1; transition: opacity .2s; }
+.board-wrap.asc-hide.show-roots svg .n.root { opacity: 1; }
+svg .live-hit.long { animation-duration: 2.5s; }
+.asc-fields { margin-bottom: 4px; }
 </style>
 
 <div class="app">
@@ -2333,19 +2336,21 @@ function nearestPosition(positions, zone) {
 function boardContext() {
   const tun = tuningObj(), maxF = +st.frets;
   if (st.tab !== "prog") {
-    const scale = scaleById(st.tab === "box" ? st.mbScale : st.scale), r = rootFrom(st.root);
-    if (st.tab === "box") chordSel = null;
+    const ov = st.tab === "drill" ? DRILL_OV : null;      // esercizio in corso: modo, tonica e box scelti dall'app
+    const scale = scaleById(ov ? ov.scale : st.tab === "box" ? st.mbScale : st.scale), r = rootFrom(ov ? ov.root : st.root);
+    if (st.tab === "box" || ov) chordSel = null;
     const notes = scale.deg.map(d => spell(r.li, r.pc, d));
     const positions = computePositions(scale, tun.midi, maxF, r);
     current.positions = positions;
-    if (st.pos > positions.length) st.pos = 0;
+    if (!ov && st.pos > positions.length) st.pos = 0;
+    const posI = ov ? Math.min(ov.pos, positions.length) : st.pos;
     current.chords = chordsOf(notes, st.chordType);
     if (chordSel != null && chordSel >= current.chords.length) chordSel = null;
     const chord = chordSel != null ? current.chords[chordSel] : null;
     const useDegs = scale.parent || scale.deg;
     return {
       title: `<span>${noteName(r)}</span> ${scale.name.toLowerCase()}`, formulaTitle: "Formula",
-      notes, root: r, pos: st.pos > 0 ? positions[st.pos - 1] : null, positions,
+      notes, root: r, pos: posI > 0 ? positions[posI - 1] : null, positions,
       chordPcs: chord ? new Set(chord.pcs) : null, chordRootPc: chord ? chord.rootPc : null, dimOthers: true,
       extraPcs: new Set(scale.deg.filter(d => !useDegs.includes(d)).map(d => spell(r.li, r.pc, d).pc)),
       kind: scale.parent || scale.deg.length === 5 ? "Box" : "Posizione",
@@ -7794,6 +7799,7 @@ if (PERSONALE) {
 }
 
 // ---- ascolto della chitarra: cattura (AudioWorklet), YIN a metà frequenza, nota solo con un attacco ----
+var DRILL_OV = null;                                     // Pratica → Suona: modo, tonica e box imposti dall'esercizio
 var ASC = { on: false, ctx: null, node: null, src: null, stream: null, wl: false, sr: 48000, ring: new Float32Array(4096), ringN: 0,
   hist: [1, 1, 1, 1], peak: 0, noise: 1e-4, cand: null, stable: 0, lastMidi: null, attT: -1, confT: 0, reattack: false, hfPrev: 0, half: new Float32Array(1024),
   onNote: null, live: null, level: 0 };
@@ -7943,7 +7949,8 @@ function ascHistPush(midi, kind) {
 const ASC_EX = {
   prog: [["free", "Improvvisa sulla base"], ["change", "Nota dell'accordo a ogni cambio"], ["char", "Nota caratteristica del modo"], ["arp", "Solo arpeggi"]],
   player: [["free", "Improvvisa sul brano"], ["tones", "Solo note dell'accordo"]],
-  drill: [["find", "Trova la nota"], ["scale", "Suona la scala nel box"]],
+  drill: [["find", "Trova la nota"], ["scale", "Suona la scala nel box"], ["modebox", "Modi: suona il modo nel box"], ["char", "Modi: nota caratteristica"],
+    ["degree", "Modi: suona il grado"], ["notes", "Teoria: tutte le note del modo"], ["chordnotes", "Teoria: note dell'accordo"]],
 };
 const ASC_GOAL = {
   free: "Improvvisa: le note del modo si accendono di verde sul manico (piene se sono note dell'accordo), quelle fuori di rosso.",
@@ -7951,6 +7958,11 @@ const ASC_GOAL = {
   char: "Su ogni accordo suona almeno una volta la nota caratteristica del modo: è quella che lo distingue dai modi vicini.",
   arp: "Suona solo le note dell'accordo in corso (metti il manico su \"Arpeggio\" per vederle).",
   tones: "Segui il brano suonando solo le note dell'accordo in corso: le trovi sul manico di \"Cosa suonare\".",
+  modebox: "Ti propongo un modo, una tonica e un box: suonalo salendo e scendendo. Finito il giro passo a un altro modo.",
+  char: "Ti nomino un modo: suona la sua nota caratteristica, quella che lo distingue dagli altri modi. Dopo la risposta il manico mostra il modo intero.",
+  degree: "Ti chiedo un grado di un modo (per esempio la ♭3 di Re dorico): trova la nota e suonala.",
+  notes: "Suona tutte le note del modo, in qualsiasi ordine e ottava. Le note fuori dal modo contano come errori.",
+  chordnotes: "Suona tutte le note dell'accordo (fondamentale, terza, quinta e, se c'è, settima), in qualsiasi ordine e ottava.",
   find: "Ti chiedo una nota: trovala sul manico e suonala. Le note del manico restano nascoste finché non rispondi. L'app sente la nota ma non la corda: suonala davvero sulla corda chiesta, vale come giusta anche se la stessa nota sta su un'altra corda.",
   scale: "Suona la scala del box salendo e poi scendendo, una nota alla volta: la prossima è cerchiata sul manico.",
 };
@@ -8002,8 +8014,58 @@ function ascNotePlayer(n) {
   ascHit("plBoardWrap", n.midi, kind); ascHistPush(n.midi, kind); ascRender();
 }
 // Pratica → Suona
+// i 7 modi della scala maggiore, con la nota caratteristica
+const DR_MODES = [["major", "ionico", "7"], ["dorian", "dorico", "6"], ["phryg", "frigio", "b2"], ["lydian", "lidio", "#4"], ["mixo", "misolidio", "b7"], ["minor", "eolio", "b6"], ["locrian", "locrio", "b5"]];
+const DR_CHORDS = [["maj", "major"], ["min", "minor"], ["dom7", "mixo"], ["maj7", "major"], ["m7", "dorian"], ["m7b5", "locrian"], ["dim", "locrian"]];
+const DR_IV_DEG = { 0: "1", 3: "b3", 4: "3", 6: "b5", 7: "5", 8: "#5", 9: "6", 10: "b7", 11: "7" };
+const drRand = n => Math.floor(Math.random() * n);
+function drPickMode() { let i; do { i = drRand(DR_MODES.length); } while (DR_MODES.length > 1 && i === AX.lastMode); AX.lastMode = i; return DR_MODES[i]; }
+function drPickRoot() { let r; do { r = drRand(12); } while (r === AX.lastRoot); AX.lastRoot = r; return r; }
+const drOrd = d => { const n = +d.replace(/[^\d]/g, ""); return `${n}º grado`; };
 function ascNewTask() {
-  const ex = ascEx(), cfg = current.cfg;
+  const ex = ascEx(), cfg = current.cfg, wrap = $("boardWrap");
+  wrap.classList.remove("asc-hide", "show-roots"); AX.heard = null; AX.solved = null;
+  if (["modebox", "char", "degree", "notes", "chordnotes"].includes(ex)) {
+    const tun = tuningObj(), maxF = +st.frets;
+    if (ex === "chordnotes") {
+      const rootI = drPickRoot(), r = rootFrom(rootI), [q, sc] = DR_CHORDS[drRand(DR_CHORDS.length)];
+      const pcs = QUAL[q].iv.map(i => mod12(r.pc + i)), names = QUAL[q].iv.map(i => noteName(spell(r.li, r.pc, DR_IV_DEG[i])));
+      DRILL_OV = { scale: sc, root: rootI, pos: 0 };
+      AX.task = { kind: "set", pcs, names, found: new Set(), html: `Suona le note di <b>${noteName(r)}${QUAL[q].show}</b>`, answer: names.join(" ") };
+      wrap.classList.add("asc-hide");
+    } else {
+      const [id, nm, cd] = drPickMode(), rootI = drPickRoot(), r = rootFrom(rootI), scale = scaleById(id);
+      const title = `${noteName(r)} ${nm}`;
+      if (ex === "modebox") {
+        const n = computePositions(scale, tun.midi, maxF, r).length;
+        DRILL_OV = { scale: id, root: rootI, pos: 1 + drRand(Math.max(1, n)) };
+        AX.task = { kind: "box", title };
+        if (st.drillLevel === "roots") wrap.classList.add("asc-hide", "show-roots");
+      } else {
+        DRILL_OV = { scale: id, root: rootI, pos: 0 };
+        wrap.classList.add("asc-hide");
+        if (ex === "char") {
+          const n = spell(r.li, r.pc, cd);
+          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `Suona la nota caratteristica di <b>${title}</b>`, answer: `la ${degLabel(cd)}: ${noteName(n)}` };
+        } else if (ex === "degree") {
+          const d = scale.deg[1 + drRand(scale.deg.length - 1)], n = spell(r.li, r.pc, d);
+          AX.task = { kind: "one", pc: n.pc, name: noteName(n), html: `In <b>${title}</b> suona la <b>${degLabel(d)}</b> <span class="hint">(${drOrd(d)})</span>`, answer: noteName(n) };
+        } else {
+          const ns = scale.deg.map(d => spell(r.li, r.pc, d));
+          AX.task = { kind: "set", pcs: ns.map(n => n.pc), names: ns.map(n => noteName(n)), found: new Set(), html: `Suona tutte le note di <b>${title}</b>`, answer: ns.map(n => noteName(n)).join(" ") };
+        }
+      }
+    }
+    AX.t0 = performance.now();
+    renderAll();                                        // il manico disegna il modo scelto
+    if (ex === "modebox") setTimeout(() => {
+      const c2 = current.cfg; AX.task.pos = c2.pos ? `${posName(c2.pos)}, tasti ${c2.pos.lo}–${c2.pos.hi}` : "";
+      AX.seq = c2.notes?.length ? upDown(sequenceFor(c2)) : []; AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0;
+      ascTarget(); ascRender();
+    }, 0);
+    ascRender(); return;
+  }
+  if (DRILL_OV) { DRILL_OV = null; renderAll(); }
   if (ex === "find") {
     const tun = tuningObj();
     let pc; do { pc = Math.floor(Math.random() * 12); } while (pc === AX.lastPc);
@@ -8039,19 +8101,34 @@ function ascHeldDrill(n) {
     } else { AX.wrong++; AX.streak = 0; AX.heard = { name: noteName(pcRoot(pc)), full: ascNm(n.midi), at: performance.now() }; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender(); setTimeout(ascRender, 2600); }
     return;
   }
-  // scala: le note giuste contano subito (si può suonare veloce), quelle sbagliate solo se tenute
+  const T = AX.task, ex = ascEx();
+  if (T && (T.kind === "one" || T.kind === "set")) {
+    if (AX.solved) return;
+    const wrongNote = () => { AX.wrong++; AX.streak = 0; AX.heard = { name: noteName(pcRoot(pc)), full: ascNm(n.midi), at: performance.now() }; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); setTimeout(ascRender, 2600); };
+    if (T.kind === "one") { if (pc === T.pc) ascSolved(n.midi, [T.pc]); else wrongNote(); }
+    else if (T.pcs.includes(pc)) {
+      if (!T.found.has(pc)) { T.found.add(pc); ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone"); }
+      if (T.found.size === T.pcs.length) ascSolved(null, T.pcs);
+    } else wrongNote();
+    ascRender(); return;
+  }
+  // scala e modo nel box: le note giuste contano subito (si può suonare veloce), quelle sbagliate solo se tenute
   const want = AX.seq?.[AX.seqI], prev = AX.seq?.[AX.seqI - 1];
   if (want == null || n.midi === want || n.midi === prev) return;
   AX.wrong++; ascHit("boardWrap", n.midi, "out"); ascHistPush(n.midi, "out"); ascRender();
 }
 function ascNoteDrill(n) {
   const ex = ascEx(), pc = mod12(n.midi);
-  if (ex === "find") return;                              // in "Trova la nota" decide la nota tenuta (ascHeldDrill)
+  if (!["scale", "modebox"].includes(ex)) return;        // le altre domande le decide la nota tenuta (ascHeldDrill)
   const want = AX.seq?.[AX.seqI]; if (want == null) return;
   if (n.midi === want) {
     if (!AX.t0) AX.t0 = n.t; AX.times.push(n.t); AX.right++; AX.seqI++;
     ascHit("boardWrap", n.midi, "tone"); ascHistPush(n.midi, "tone");
-    if (AX.seqI >= AX.seq.length) { AX.done = { secs: n.t - AX.t0, wrong: AX.wrong, even: ascEven(AX.times) }; AX.laps.push(AX.done); if (AX.laps.length > 8) AX.laps.shift(); AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0; }
+    if (AX.seqI >= AX.seq.length) {
+      AX.done = { secs: n.t - AX.t0, wrong: AX.wrong, even: ascEven(AX.times), title: ex === "modebox" ? `${AX.task?.title} · ${AX.task?.pos}` : "" };
+      AX.laps.push(AX.done); if (AX.laps.length > 8) AX.laps.shift(); AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0;
+      if (ex === "modebox") { AX.right++; AX.seq = null; $("boardWrap").classList.remove("asc-hide", "show-roots"); setTimeout(() => { if (ASC.on && ascEx() === "modebox") ascNewTask(); }, 1500); }
+    }
     ascTarget();
   }
   ascRender();
@@ -8061,9 +8138,20 @@ function ascReveal(T) {
   const wrap = $("boardWrap"), g = wrap._geo, svg = wrap.querySelector("svg"); if (!g || !svg) return;
   g.midi.forEach((open, s) => { for (let f = 0; f <= g.maxF; f++) if (mod12(open + f) === T.pc) {
     const [x, y] = g.at(g.noteU(f), g.sy(s)), el = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    el.setAttribute("class", "live-hit reveal-hit " + (s === T.s ? "tone" : "in")); el.setAttribute("transform", `translate(${x},${y})`);
-    el.innerHTML = `<circle r="${g.R + 2}"/><text>${T.name}</text>`; svg.appendChild(el); setTimeout(() => el.remove(), 1400);
+    el.setAttribute("class", "live-hit reveal-hit " + (s === T.s || T.s === -1 ? "tone" : "in") + (T.s === -1 ? " long" : "")); el.setAttribute("transform", `translate(${x},${y})`);
+    el.innerHTML = `<circle r="${g.R + 2}"/><text>${T.name}</text>`; svg.appendChild(el); setTimeout(() => el.remove(), T.s === -1 ? 2500 : 1400);
   } });
+}
+// risposta giusta: il manico mostra il modo (o le note dell'accordo) e dopo un attimo arriva la domanda successiva
+function ascSolved(midi, pcs) {
+  const T = AX.task; AX.solved = true;
+  AX.right++; AX.streak++; AX.best = Math.max(AX.best, AX.streak); AX.times.push((performance.now() - AX.t0) / 1000);
+  if (midi != null) { ascHit("boardWrap", midi, "tone"); ascHistPush(midi, "tone"); }
+  const wrap = $("boardWrap");
+  if (ascEx() === "chordnotes") pcs.forEach((pc, k) => ascReveal({ pc, name: T.names[k], s: -1 }));
+  else { wrap.classList.remove("asc-hide"); if (T.kind === "one") ascReveal({ pc: T.pc, name: T.name, s: -1 }); }
+  const ex = ascEx();
+  setTimeout(() => { if (ASC.on && ascEx() === ex) ascNewTask(); }, 2600);
 }
 // regolarità: quanto variano gli intervalli fra le note (0% = perfettamente regolare)
 function ascEven(ts) {
@@ -8089,8 +8177,9 @@ function ascStop() {
   if (!ASC.on) return;
   ASC.on = false; ASC.listen = false; ASC.onNote = null; ASC.onHeld = null; ascLive(null);
   if (ASC.ctx === "prog") { ascCloseLap(); if (playing === "main") stopAll(); }
-  $("boardWrap").classList.remove("asc-hide"); document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
+  $("boardWrap").classList.remove("asc-hide", "show-roots"); document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
   ascRelease(); ascRender();
+  if (DRILL_OV) { DRILL_OV = null; setTimeout(renderAll, 0); }
 }
 async function ascCalibrate() {
   try { await ascCapture(); } catch (e) { $("ascMsg").textContent = "Ingresso non disponibile: " + e.message; return; }
@@ -8117,7 +8206,8 @@ function ascPanelBuild() {
   const sec = document.createElement("section");
   sec.className = "panel asc-panel"; sec.id = "ascPanel"; sec.setAttribute("aria-label", "Suona e ascolta"); sec.hidden = true;
   sec.innerHTML = `<div class="asc-head"><h2>Suona e ascolta</h2><button class="btn primary" id="ascGo" aria-pressed="false">Suona e ascolta</button></div>
-    <label class="field"><span class="label">Esercizio</span><select id="ascExSel"></select></label>
+    <div class="fields asc-fields"><label class="field"><span class="label">Esercizio</span><select id="ascExSel"></select></label>
+      <label class="field" id="ascLevelF" hidden><span class="label">Sul manico</span><select id="ascLevel"><option value="box">Tutto il box</option><option value="roots">Solo le toniche (a memoria)</option></select></label></div>
     <p class="hint asc-goal" id="ascGoal"></p>
     <div class="asc-task" id="ascTask" hidden></div>
     <div class="asc-live"><div class="asc-note" id="ascNote">–<small>&nbsp;</small></div><div class="asc-meter" aria-hidden="true"><i id="ascMeter"></i></div></div>
@@ -8142,9 +8232,10 @@ function ascPlace() {
   if (!sec) {
     sec = ascPanelBuild(); document.querySelector("main").append(sec);
     $("ascGo").addEventListener("click", () => ASC.on ? ascStop() : ascStart());
-    $("ascExSel").addEventListener("change", e => { st["ascEx_" + ASC.ctx] = e.target.value; save(); if (ASC.on) { ascStop(); ascStart(); } else ascRender(); });
+    $("ascExSel").addEventListener("change", e => { st["ascEx_" + ASC.ctx] = e.target.value; save(); if (ASC.on) { ascStop(); ascStart(); } else { if (DRILL_OV) { DRILL_OV = null; renderAll(); } ascRender(); } });
     $("ascIn").addEventListener("change", e => { st.ascIn = e.target.value; save(); const on = ASC.on; if (on) ascStop(); ascRelease(); if (on) ascStart(); });
     $("ascCal").addEventListener("click", ascCalibrate);
+    $("ascLevel").addEventListener("change", e => { st.drillLevel = e.target.value; save(); if (ASC.on && ascEx() === "modebox") $("boardWrap").classList.toggle("asc-hide", st.drillLevel === "roots"), $("boardWrap").classList.toggle("show-roots", st.drillLevel === "roots"); });
     if (MIC_OK && navigator.mediaDevices?.enumerateDevices) ascDevices().catch(() => {});
   }
   const ctx = st.tab === "prog" ? "prog" : st.tab === "drill" ? "drill" : st.tab === "player" && PL.audio ? "player" : null;
@@ -8172,6 +8263,18 @@ function ascRender() {
   const stat = (v, k) => `<div class="asc-stat"><b>${v}</b><span>${k}</span></div>`;
   const task = $("ascTask"); task.hidden = true;
   if (ASC.ctx === "drill") {
+    $("ascLevelF").hidden = ex !== "modebox"; $("ascLevel").value = st.drillLevel === "roots" ? "roots" : "box";
+    const T = AX.task;
+    if (T && (T.kind === "one" || T.kind === "set") && ["char", "degree", "notes", "chordnotes"].includes(ex)) {
+      task.hidden = !ASC.on;
+      const heard = AX.heard && performance.now() - AX.heard.at < 2500 && !AX.solved ? `<br><span class="hint">Ho sentito ${AX.heard.name}: ${T.kind === "one" ? "non è quella" : "non fa parte"}. Riprova.</span>` : "";
+      const prog = T.kind === "set" ? `<br><span class="hint">Trovate ${T.found.size} di ${T.pcs.length}${T.found.size ? ": " + T.pcs.map((pc, k) => T.found.has(pc) ? T.names[k] : null).filter(Boolean).join(" ") : ""}</span>` : "";
+      task.innerHTML = AX.solved ? `Giusto! <span class="hint">${T.kind === "one" ? "È " + T.answer : "Le note: " + T.answer}</span>` : T.html + prog + heard;
+      const avg = AX.times.length ? (AX.times.reduce((a, b) => a + b, 0) / AX.times.length).toFixed(1).replace(".", ",") + " s" : "–";
+      $("ascScore").innerHTML = stat(AX.right, "giuste") + stat(AX.wrong, "note sbagliate") + stat(AX.best, "di fila, record") + stat(avg, "tempo medio");
+      $("ascTotal").textContent = ""; $("ascLaps").innerHTML = "";
+      return;
+    }
     if (ex === "find") {
       task.hidden = !ASC.on;
       const heard = AX.heard && performance.now() - AX.heard.at < 2500 && AX.task ? `<br><span class="hint">Ho sentito ${AX.heard.name} (${AX.heard.full}): non è ${AX.task.name}. Riprova.</span>` : "";
@@ -8182,11 +8285,13 @@ function ascRender() {
     } else {
       task.hidden = !ASC.on;
       const m = AX.seq?.[AX.seqI];
-      task.innerHTML = m != null ? `Prossima: <b>${ascNm(m)}</b> <span class="hint">(${AX.seqI + 1} di ${AX.seq.length})</span>` : "Scegli una scala con delle note.";
+      const head = ex === "modebox" && T?.title ? `Suona <b>${T.title}</b> <span class="hint">${T.pos || ""}</span><br>` : "";
+      const sp = current.cfg?.notes?.find(x => x.pc === mod12(m ?? 0)), nm = m == null ? "" : sp ? noteName(sp) + (Math.floor(m / 12) - 1) : ascNm(m);
+      task.innerHTML = head + (m != null ? `Prossima: <b>${nm}</b> <span class="hint">(${AX.seqI + 1} di ${AX.seq.length})</span>` : ex === "modebox" ? "Bravo! Arriva il prossimo modo…" : "Scegli una scala con delle note.");
       $("ascScore").innerHTML = stat(AX.seq ? `${AX.seqI}/${AX.seq.length}` : "–", "note del giro") + stat(AX.wrong, "sbagliate in questo giro") +
         (AX.done ? stat(AX.done.secs.toFixed(1).replace(".", ",") + " s", "ultimo giro") + stat(AX.done.even == null ? "–" : AX.done.even + "%", "irregolarità (meno è meglio)") : "");
       $("ascTotal").textContent = "";
-      $("ascLaps").innerHTML = AX.laps.slice().reverse().map((l, i) => `<li><b>Giro ${AX.laps.length - i}</b>${l.secs.toFixed(1).replace(".", ",")} s · ${l.wrong} sbagliate · irregolarità ${l.even ?? "–"}%</li>`).join("");
+      $("ascLaps").innerHTML = AX.laps.slice().reverse().map((l, i) => `<li><b>${l.title || "Giro " + (AX.laps.length - i)}</b> ${l.secs.toFixed(1).replace(".", ",")} s · ${l.wrong} sbagliate · irregolarità ${l.even ?? "–"}%</li>`).join("");
     }
     return;
   }
