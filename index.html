@@ -1078,6 +1078,14 @@ svg .n.target circle { stroke: #fff; stroke-width: 4; stroke-dasharray: 4 3; }
 .board-wrap.asc-hide.show-roots svg .n.root { opacity: 1; }
 svg .live-hit.long { animation-duration: 2.5s; }
 .asc-fields { margin-bottom: 4px; }
+/* ---- separazione delle tracce ---- */
+.sep-box { display: grid; gap: 10px; margin-bottom: 8px; }
+.sep-box .hint { margin: 0; }
+.sep-prog { height: 8px; }
+.sep-mix .stem { grid-template-columns: 78px auto auto minmax(0, 1fr) 44px; }
+.sep-mix .stem output { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.sep-mix .mini-btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.sep-mix .stem.off b { opacity: .45; }
 </style>
 
 <div class="app">
@@ -1365,12 +1373,16 @@ svg .live-hit.long { animation-duration: 2.5s; }
 
       <section class="panel" aria-label="Tracce" id="plTracks">
         <div class="card-head"><h2>Tracce</h2><button class="btn icon help-btn" type="button" data-help aria-label="Come funziona" aria-expanded="false">?</button></div>
-        <div class="trk-rows" id="trkRows"></div>
-        <p class="hint help">Con la base senza voce e la traccia della voce di questo brano puoi abbassare o togliere il cantante e cantare al suo posto. Le due tracce devono venire da questo stesso file. Nel prototipo si caricano a mano; nell'app le separerà l'app da sola, sul dispositivo.</p>
-        <details class="explain trk-auto"><summary><h2>Separazione automatica <span class="badge-soon">nell'app</span></h2></summary>
-          <div class="sep-opts" role="radiogroup" aria-label="Tipo di separazione" id="plSepOpts"></div>
-          <div class="stems soon" id="plStems"></div>
-        </details>
+        <div class="sep-box" id="sepBox">
+          <p class="hint" id="sepInfo">Separa il brano in 4 tracce (voce, batteria, basso, altro) e regola ognuna: togli la voce, isola il basso, abbassa la batteria. Tutto avviene sul dispositivo.</p>
+          <div class="grp"><button class="btn primary" type="button" id="sepGo">Separa le tracce</button><button class="btn" type="button" id="sepStop" hidden>Annulla</button><button class="btn" type="button" id="sepDel" hidden>Elimina le tracce</button><button class="btn" type="button" id="sepReset" hidden>Brano originale</button></div>
+          <div class="progress sep-prog" id="sepProg" hidden><div class="bar" id="sepBar"></div></div>
+          <p class="hint" id="sepMsg"></p>
+          <div class="stems sep-mix" id="sepMix" hidden></div>
+        </div>
+        <p class="hint help">La separazione usa Spleeter (Deezer) e gira sul dispositivo: il brano non esce mai. La prima volta scarica i modelli (circa 79 MB) e li tiene per le volte successive. Le tracce si salvano con il brano, compresse (pochi MB l'una). Le chitarre finiscono in «Altro» insieme a tastiere e altri strumenti.</p>
+        <div class="trk-rows" id="trkRows" data-only="personale"></div>
+        <p class="hint help" data-only="personale">Versione personale: puoi anche caricare a mano una base senza voce e la traccia della voce (per esempio separate al PC) per abbassare il cantante e cantare al suo posto.</p>
       </section>
     </div>
 
@@ -4409,7 +4421,7 @@ async function libDelete(id) {
   try { await libReq("audio", "readwrite", s => s.delete(id)); await libReq("meta", "readwrite", s => s.delete(id)); } catch (e) {}
   LIB.items = LIB.items.filter(x => x.id !== id);
   try { localStorage.removeItem("pl:" + id); localStorage.removeItem("pl:" + id + ":ch"); } catch (e) {}
-  try { await libReq("audio", "readwrite", s => s.delete(id + ":voc")); await libReq("audio", "readwrite", s => s.delete(id + ":base")); await libReq("audio", "readwrite", s => s.delete(id + ":pdf")); } catch (e) {}
+  for (const k of [":voc", ":base", ":pdf", ":video", ":sep:vocals", ":sep:drums", ":sep:bass", ":sep:other"]) { try { await libReq("audio", "readwrite", s => s.delete(id + k)); } catch (e) {} }
   if (st.lastSong === id) { st.lastSong = null; st.lastPos = 0; save(); }
   if (PL.libId === id && PL.audio) {          // era il brano aperto: lo chiudo
     plPause(); PL.audio.removeAttribute("src"); PL.audio.load(); PL.audio = null;
@@ -4498,29 +4510,6 @@ async function libResume() {
 // Tonalità e separazione delle tracce: solo interfaccia, da collegare al motore audio dell'app.
 const PL = { audio: null, url: "", name: "", key: "", peaks: null, A: null, B: null, loop: false, sections: [], raf: 0, active: -1 };
 const fmtT = t => { if (!isFinite(t) || t < 0) t = 0; const m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ":" + String(s).padStart(2, "0"); };
-// Opzioni di separazione: valori misurati su PC (i7-1065G7, solo CPU) con Nothing Else Matters, 6:29.
-const SEP_MODES = [
-  { id: "fast", name: "Rapida", stems: ["Voce", "Batteria", "Basso", "Altro"], size: "79 MB", time: "≈ 1 min per un brano di 6 min",
-    note: "Le chitarre restano insieme a tastiere e altri strumenti in «Altro»." },
-  { id: "guitar", name: "Con chitarra", stems: ["Voce", "Chitarra", "Basso", "Batteria", "Piano", "Altro"], size: "55 MB", time: "≈ 6–7 min per un brano di 6 min",
-    note: "Traccia chitarra separata: più lenta, ma puoi togliere o isolare solo la chitarra." },
-];
-let sepMode = "guitar";
-try { sepMode = localStorage.getItem("plSepMode") || sepMode; } catch (e) {}
-function plRenderSep() {
-  const m = SEP_MODES.find(x => x.id === sepMode) || SEP_MODES[1];
-  $("plSepOpts").innerHTML = SEP_MODES.map(x => `<button class="sep-opt" role="radio" aria-checked="${x.id === m.id}" data-sep="${x.id}">
-    <span class="sep-name">${x.name} <small>${x.stems.length} tracce</small></span>
-    <span class="sep-meta">${x.time} · download ${x.size}</span>
-    <span class="sep-note">${x.note}</span></button>`).join("");
-  $("plStems").innerHTML = m.stems.map(n => `<div class="stem"><b>${n}</b><button class="mini-btn" disabled aria-label="Muto ${n}">M</button><button class="mini-btn" disabled aria-label="Solo ${n}">S</button><input type="range" min="0" max="100" value="80" disabled aria-label="Volume ${n}"></div>`).join("");
-}
-$("plSepOpts").addEventListener("click", e => {
-  const b = e.target.closest("[data-sep]"); if (!b) return;
-  sepMode = b.dataset.sep; try { localStorage.setItem("plSepMode", sepMode); } catch (e) {}
-  plRenderSep();
-});
-plRenderSep();
 function plLoad(file, meta) {
   if (!file) return;
   plPause();
@@ -4542,7 +4531,7 @@ function plLoad(file, meta) {
     PL.audio.addEventListener("timeupdate", () => { const t = PL.audio.currentTime; if (Math.abs(t - (st.lastPos || 0)) > 2) plSavePos(); });
     PL.audio.addEventListener("seeked", () => plSavePos());
     PL.audio.addEventListener("pause", () => { plUpdate(); tbPlayState(false); stmSync(true); if (!VO.on) { cancelAnimationFrame(VO.raf); VO.raf = 0; voDraw(); } });
-    PL.audio.addEventListener("play", () => { tbPlayState(true); stmApply(); if (VO.notes && !VO.on) { cancelAnimationFrame(VO.raf); VO.raf = requestAnimationFrame(voLoop); } });
+    PL.audio.addEventListener("play", () => { tbPlayState(true); stmApply(); sepApply(); if (VO.notes && !VO.on) { cancelAnimationFrame(VO.raf); VO.raf = requestAnimationFrame(voLoop); } });
     PL.audio.addEventListener("seeked", () => { tbPos(); stmSync(true); });
     PL.audio.addEventListener("ratechange", () => stmSync(true));
     ["play", "pause", "seeked"].forEach(ev => PL.audio.addEventListener(ev, () => { if (VD.kind === "file" && $("vdFollow").checked) vdLoop(); }));
@@ -4554,7 +4543,7 @@ function plLoad(file, meta) {
   try { PL.sections = JSON.parse(localStorage.getItem(PL.key) || "[]"); } catch (e) { PL.sections = []; }
   PL.buf = null; PL.chords = null; PL.chSel = -1; PL.chIdx = -2; PL.busy = false; PL.chHist = []; PL.chScope = "one";
   try { PL.chords = JSON.parse(localStorage.getItem(PL.key + ":ch") || "null"); } catch (e) { PL.chords = null; }
-  stmReset(); PL.chProgP = 0; renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore(); vdRestore(); plModeApply(); plPrepRender(true);
+  stmReset(); sepReset(); PL.chProgP = 0; renderAll(); plRenderSections(); plChordsRender(); plApplyPitch(); plPitchUi(); tbRestore(); voRestore(); stmRestore(); sepRestore(); vdRestore(); plModeApply(); plPrepRender(true);
   file.arrayBuffer().then(buf => ac().decodeAudioData(buf)).then(buf => { PL.buf = buf; PL.peaks = plPeaks(buf, 2000); plDraw(); plChordsRender(); if (PL.gp) { tbRender(); tbSync(); } plAutoPrep(); })
     .catch(() => { PL.peaks = null; plDraw(); plChordsRender(); });
 }
@@ -6524,6 +6513,321 @@ matchMedia("(max-width: 600px)").addEventListener?.("change", () => rlRender());
 })();
 $("voToTracks").addEventListener("click", () => { plSheetOpen(true); setTimeout(() => $("plTracks").scrollIntoView({ block: "start" }), 50); });
 
+
+// ===================== Separazione delle tracce sul dispositivo (Spleeter 4 tracce, ONNX) =====================
+// Contratto dei modelli (come stem-test/spleeter_test.py): 44,1 kHz stereo, STFT Hann periodica 4096/1024, la rete vede
+// i primi 1024 bin in blocchi da 512 frame (~11,9 s); maschere morbide tra le 4 tracce, estese ai bin alti con la media,
+// applicate allo spettro complesso. Tutto in un worker: WebGPU se c'è, altrimenti WebAssembly. Le tracce escono già
+// compresse in Opus (WebCodecs) dentro un file Ogg, così un brano di 6 minuti occupa ~6 MB a traccia invece di ~120.
+const SEP_STEMS = [["vocals", "Voce"], ["drums", "Batteria"], ["bass", "Basso"], ["other", "Altro"]];
+const SEP_ORT = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+const SEP_MODELS = new URL("modelli/spleeter4/", location.href).href;
+const SEP_WORKER = String.raw`
+const N = 4096, HOP = 1024, T = 512, F = 1024, B = 2049, PAD = N - HOP, STEMS = ["vocals", "drums", "bass", "other"];
+const W = new Float32Array(N); for (let i = 0; i < N; i++) W[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+const rev = new Uint16Array(N); for (let i = 0; i < N; i++) { let r = 0; for (let b = 0; b < 12; b++) r = (r << 1) | ((i >> b) & 1); rev[i] = r; }
+const cosT = new Float64Array(N / 2), sinT = new Float64Array(N / 2); for (let k = 0; k < N / 2; k++) { cosT[k] = Math.cos(2 * Math.PI * k / N); sinT[k] = Math.sin(2 * Math.PI * k / N); }
+const swA = [], swB = []; for (let i = 0; i < N; i++) if (i < rev[i]) { swA.push(i); swB.push(rev[i]); }
+const SWA = Int32Array.from(swA), SWB = Int32Array.from(swB);
+// FFT radice 2 sul posto, senza scalare (la divisione per N dell'inversa si fa nell'overlap-add)
+function fft(re, im, inv) {
+  for (let q = 0; q < SWA.length; q++) { const i = SWA[q], j = SWB[q]; let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  for (let a = 0; a < N; a += 2) { const b = a + 1, xr = re[b], xi = im[b]; re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi; }
+  const sg = inv ? 1 : -1;
+  for (let size = 4; size <= N; size <<= 1) {
+    const half = size >> 1, step = N / size;
+    for (let j = 0; j < half; j++) {
+      const wr = cosT[j * step], wi = sg * sinT[j * step];
+      for (let a = j; a < N; a += size) {
+        const b = a + half, br = re[b], bi = im[b], xr = br * wr - bi * wi, xi = br * wi + bi * wr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+      }
+    }
+  }
+}
+const WN = new Float32Array(N); for (let i = 0; i < N; i++) WN[i] = W[i] / N / 1.5;   // finestra di sintesi, già divisa per N e per la somma delle finestre²
+// ---- Ogg Opus ----
+const CRC = new Uint32Array(256); for (let i = 0; i < 256; i++) { let r = i << 24; for (let j = 0; j < 8; j++) r = (r & 0x80000000) ? ((r << 1) ^ 0x04C11DB7) : (r << 1); CRC[i] = r >>> 0; }
+function oggPage(pk, gran, serial, seq, flags) {
+  const segs = []; let len = pk.length; while (len >= 255) { segs.push(255); len -= 255; } segs.push(len);
+  const h = new Uint8Array(27 + segs.length + pk.length), dv = new DataView(h.buffer);
+  h.set([0x4f, 0x67, 0x67, 0x53]); h[5] = flags;
+  dv.setUint32(6, gran % 4294967296, true); dv.setUint32(10, Math.floor(gran / 4294967296), true);
+  dv.setUint32(14, serial, true); dv.setUint32(18, seq, true);
+  h[26] = segs.length; h.set(segs, 27); h.set(pk, 27 + segs.length);
+  let c = 0; for (let i = 0; i < h.length; i++) c = ((c << 8) ^ CRC[((c >>> 24) ^ h[i]) & 255]) >>> 0;
+  dv.setUint32(22, c, true); return h;
+}
+function oggOpus(packets, nSamples, sr) {
+  const serial = (Math.random() * 4294967295) >>> 0, PRE = 312, parts = [];
+  const head = new Uint8Array(19), hv = new DataView(head.buffer);
+  head.set([79, 112, 117, 115, 72, 101, 97, 100]); head[8] = 1; head[9] = 2; hv.setUint16(10, PRE, true); hv.setUint32(12, sr, true);
+  const vendor = new TextEncoder().encode("Fretroot"), tags = new Uint8Array(8 + 4 + vendor.length + 4), tv = new DataView(tags.buffer);
+  tags.set([79, 112, 117, 115, 84, 97, 103, 115]); tv.setUint32(8, vendor.length, true); tags.set(vendor, 12);
+  let seq = 0; parts.push(oggPage(head, 0, serial, seq++, 2), oggPage(tags, 0, serial, seq++, 0));
+  let g = PRE; const end = PRE + Math.round(nSamples * 48000 / sr);
+  packets.forEach((p, i) => { g += Math.round(p.dur * 48 / 1000); const last = i === packets.length - 1; parts.push(oggPage(p.data, last ? Math.min(g, end) : g, serial, seq++, last ? 4 : 0)); });
+  return new Blob(parts, { type: "audio/ogg; codecs=opus" });
+}
+// WAV a 16 bit, se il browser non sa comprimere in Opus
+function wavBlob(chunks, n, sr) {
+  const h = new ArrayBuffer(44), v = new DataView(h), w = (o, t) => { for (let i = 0; i < 4; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 4, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 4, true);
+  return new Blob([h, ...chunks], { type: "audio/wav" });
+}
+async function loadModel(base, s, onp) {
+  const url = base + s + ".fp16.onnx";
+  let cache = null; try { cache = await caches.open("fretroot-modelli-v1"); } catch (e) {}
+  let r = cache && await cache.match(url);
+  if (!r) {
+    const res = await fetch(url); if (!res.ok) throw new Error("modello " + s + " non scaricato (" + res.status + ")");
+    const tot = +res.headers.get("content-length") || 19714140, rd = res.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onp(got / tot); }
+    const blob = new Blob(parts);
+    if (cache) try { await cache.put(url, new Response(blob)); } catch (e) {}
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+  onp(1); return new Uint8Array(await r.arrayBuffer());
+}
+onmessage = async e => {
+  const m = e.data;
+  try {
+    importScripts(m.ortBase + "ort.webgpu.min.js");
+    ort.env.wasm.wasmPaths = m.ortBase; ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
+    const bufs = {};
+    for (let k = 0; k < 4; k++) bufs[STEMS[k]] = await loadModel(m.models, STEMS[k], p => postMessage({ type: "progress", phase: "models", p: (k + p) / 4 }));
+    postMessage({ type: "progress", phase: "prepare", p: 0 });
+    let ep = "wasm", sess = {};
+    const L = m.L, R = m.R, n = L.length, sr = 44100, nfr = Math.ceil((PAD + n) / HOP);
+    const x = new Float32Array(2 * T * F), tensor = () => new ort.Tensor("float32", x, [2, 1, T, F]);
+    if (navigator.gpu && !m.noGpu) {
+      try { for (const s of STEMS) sess[s] = await ort.InferenceSession.create(bufs[s], { executionProviders: ["webgpu"] }); await sess.vocals.run({ x: tensor() }); ep = "webgpu"; }
+      catch (err) { sess = {}; }
+    }
+    if (ep !== "webgpu") for (const s of STEMS) sess[s] = await ort.InferenceSession.create(bufs[s], { executionProviders: ["wasm"] });
+    postMessage({ type: "progress", phase: "sep", p: 0, ep });
+    // codificatori: Opus se c'è, altrimenti WAV
+    let opus = false; if (!m.wav) try { opus = typeof AudioEncoder !== "undefined" && (await AudioEncoder.isConfigSupported({ codec: "opus", sampleRate: sr, numberOfChannels: 2, bitrate: 128000 })).supported; } catch (err) {}
+    const enc = {}, pk = {}, wav = {}; let encErr = null;
+    for (const s of STEMS) {
+      pk[s] = []; wav[s] = [];
+      if (opus) { enc[s] = new AudioEncoder({ output: c => { const d = new Uint8Array(c.byteLength); c.copyTo(d); pk[s].push({ data: d, dur: c.duration || 20000 }); }, error: er => { encErr = er; } });
+        enc[s].configure({ codec: "opus", sampleRate: sr, numberOfChannels: 2, bitrate: 128000 }); }
+    }
+    const ts = {}; STEMS.forEach(s => ts[s] = 0);
+    const emit = (s, l, r) => {                              // campioni finiti di una traccia → codificatore
+      const k = l.length; if (!k) return;
+      if (opus) { const d = new Float32Array(2 * k); d.set(l, 0); d.set(r, k);
+        enc[s].encode(new AudioData({ format: "f32-planar", sampleRate: sr, numberOfFrames: k, numberOfChannels: 2, timestamp: Math.round(ts[s] * 1e6 / sr), data: d })); }
+      else { const i16 = new Int16Array(2 * k); for (let i = 0; i < k; i++) { i16[2 * i] = Math.max(-32768, Math.min(32767, l[i] * 32767)); i16[2 * i + 1] = Math.max(-32768, Math.min(32767, r[i] * 32767)); } wav[s].push(i16); }
+      ts[s] += k;
+    };
+    // doppio buffer: mentre la scheda grafica lavora sul blocco successivo, qui si ricostruisce quello corrente
+    const mkBuf = () => ({ x: new Float32Array(2 * T * F), sre: new Float32Array(T * B), sim: new Float32Array(T * B), tre: new Float32Array(T * B), tim: new Float32Array(T * B) });
+    const bufA = [mkBuf(), mkBuf()];
+    const re = new Float64Array(N), im = new Float64Array(N);
+    const carry = {}; STEMS.forEach(s => carry[s] = [new Float32Array(N - HOP), new Float32Array(N - HOP)]);
+    const mk = {}; STEMS.forEach(s => mk[s] = new Float32Array(2 * T * B));
+    let written = 0, tModel = 0, tDsp = 0; const t0 = Date.now();
+    const prep = (f0, bf) => {                                // STFT del blocco che comincia al frame f0
+      const f1 = Math.min(nfr, f0 + T), nf = f1 - f0, p0 = f0 * HOP, { x, sre, sim, tre, tim } = bf;
+      x.fill(0);
+      for (let f = 0; f < nf; f++) {
+        const base = p0 + f * HOP - PAD;
+        for (let i = 0; i < N; i++) { const j = base + i; const ok = j >= 0 && j < n; re[i] = ok ? L[j] * W[i] : 0; im[i] = ok ? R[j] * W[i] : 0; }
+        fft(re, im, false);
+        for (let k = 0; k < B; k++) {
+          const nk = (N - k) % N, ar = re[k], ai = im[k], br = re[nk], bi = im[nk];
+          const lr = (ar + br) / 2, li = (ai - bi) / 2, rr = (ai + bi) / 2, ri = -(ar - br) / 2, o = f * B + k;
+          sre[o] = lr; sim[o] = li; tre[o] = rr; tim[o] = ri;
+          if (k < F) { x[f * F + k] = Math.hypot(lr, li); x[T * F + f * F + k] = Math.hypot(rr, ri); }
+        }
+      }
+    };
+    const infer = async bf => { const E = []; for (const s of STEMS) E.push((await sess[s].run({ x: new ort.Tensor("float32", bf.x, [2, 1, T, F]) })).y.data); return E; };
+    prep(0, bufA[0]);
+    let pending = infer(bufA[0]), bi = 0;
+    for (let f0 = 0; f0 < nfr; f0 += T) {
+      const f1 = Math.min(nfr, f0 + T), nf = f1 - f0, p0 = f0 * HOP, cur = bufA[bi];
+      const tm0 = Date.now(); const E = await pending; tModel += Date.now() - tm0; const td0 = Date.now();
+      // maschere morbide: (e² + ε/4) / Σe², sopra i 1024 bin la media della maschera
+      const M0 = mk.vocals, M1 = mk.drums, M2 = mk.bass, M3 = mk.other, [E0, E1, E2, E3] = E;
+      for (let c = 0; c < 2; c++) for (let f = 0; f < nf; f++) {
+        const o = c * T * F + f * F, b0 = c * T * B + f * B; let s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+        for (let k = 0; k < F; k++) {
+          const a0 = E0[o + k] * E0[o + k], a1 = E1[o + k] * E1[o + k], a2 = E2[o + k] * E2[o + k], a3 = E3[o + k] * E3[o + k], den = a0 + a1 + a2 + a3 + 1e-10;
+          const q0 = (a0 + 2.5e-11) / den, q1 = (a1 + 2.5e-11) / den, q2 = (a2 + 2.5e-11) / den, q3 = (a3 + 2.5e-11) / den;
+          M0[b0 + k] = q0; M1[b0 + k] = q1; M2[b0 + k] = q2; M3[b0 + k] = q3; s0 += q0; s1 += q1; s2 += q2; s3 += q3;
+        }
+        M0.fill(s0 / F, b0 + F, b0 + B); M1.fill(s1 / F, b0 + F, b0 + B); M2.fill(s2 / F, b0 + F, b0 + B); M3.fill(s3 / F, b0 + F, b0 + B);
+      }
+      // il blocco dopo parte subito sulla scheda grafica
+      if (f1 < nfr) { prep(f1, bufA[1 - bi]); pending = infer(bufA[1 - bi]); }
+      const { sre, sim, tre, tim } = cur;
+      const Lb = (nf - 1) * HOP + N, last = f1 >= nfr, cut = last ? Lb : nf * HOP;
+      for (const s of STEMS) {
+        const accL = new Float32Array(Lb), accR = new Float32Array(Lb), M = mk[s];
+        accL.set(carry[s][0], 0); accR.set(carry[s][1], 0);
+        for (let f = 0; f < nf; f++) {
+          for (let k = 0; k < B; k++) {
+            const o = f * B + k, ml = M[o], mr = M[T * B + o];
+            const yl = sre[o] * ml, yli = sim[o] * ml, yr = tre[o] * mr, yri = tim[o] * mr;
+            re[k] = yl - yri; im[k] = yli + yr;
+            if (k > 0 && k < N / 2) { re[N - k] = yl + yri; im[N - k] = -yli + yr; }
+          }
+          fft(re, im, true);
+          const off = f * HOP; for (let i = 0; i < N; i++) { const w = WN[i]; accL[off + i] += re[i] * w; accR[off + i] += im[i] * w; }
+          if ((f & 63) === 63) await new Promise(r => setTimeout(r, 0));   // lascio partire i passi successivi della scheda grafica
+        }
+        // campioni definitivi del blocco, da coordinate con PAD a campioni veri
+        const lo = Math.max(0, PAD - p0), hi = Math.min(cut, n + PAD - p0);
+        if (hi > lo) emit(s, accL.slice(lo, hi), accR.slice(lo, hi));
+        if (!last) { carry[s] = [accL.slice(cut, cut + N - HOP), accR.slice(cut, cut + N - HOP)]; }
+      }
+      bi = 1 - bi;
+      written = Math.min(n, f1 * HOP - PAD); tDsp += Date.now() - td0;
+      if (encErr) throw encErr;
+      postMessage({ type: "progress", phase: "sep", p: f1 / nfr, ep, secs: (Date.now() - t0) / 1000 });
+    }
+    const out = {};
+    for (const s of STEMS) {
+      if (opus) { await enc[s].flush(); enc[s].close(); out[s] = oggOpus(pk[s], n, sr); }
+      else out[s] = wavBlob(wav[s], n, sr);
+    }
+    postMessage({ type: "done", stems: out, ep, codec: opus ? "opus" : "wav", secs: (Date.now() - t0) / 1000, tModel: tModel / 1000, tDsp: tDsp / 1000 });
+  } catch (err) { postMessage({ type: "error", msg: String(err && err.message || err) }); }
+};`;
+
+var SEP = { worker: null, busy: false, els: null, timer: 0, t0: 0 };
+function sepCfg() { try { return JSON.parse(localStorage.getItem(PL.key + ":sepmix") || "null") || {}; } catch (e) { return {}; } }
+function sepSaveCfg(c) { try { localStorage.setItem(PL.key + ":sepmix", JSON.stringify(c)); } catch (e) {} }
+function sepVol(c, s) { return c.vol?.[s] ?? 100; }
+// le tracce suonano al posto del brano solo se il mixer non è "tutto al 100%"
+function sepOn() {
+  if (!SEP || !SEP.els) return false;
+  const c = sepCfg(); return !!c.solo || SEP_STEMS.some(([s]) => sepVol(c, s) !== 100 || c.mute?.[s]);
+}
+function sepReset() {
+  if (!SEP) return;
+  if ($("sepMsg")) delete $("sepMsg").dataset.keep;
+  clearInterval(SEP.timer); SEP.timer = 0;
+  if (SEP.els) Object.values(SEP.els).forEach(x => stmDrop(x));
+  SEP.els = null; sepUi();
+}
+function sepSet(blobs) {
+  sepReset(); SEP.els = {};
+  SEP_STEMS.forEach(([s]) => { if (blobs[s]) SEP.els[s] = { el: stmEl(blobs[s]), src: null, g: null }; });
+  sepUi();
+}
+async function sepRestore() {
+  const id = PL.libId, key = PL.key; if (!id) { sepUi(); return; }
+  const got = {};
+  for (const [s] of SEP_STEMS) { try { const b = await libReq("audio", "readonly", st2 => st2.get(id + ":sep:" + s)); if (b) got[s] = b; } catch (e) {} }
+  if (PL.key !== key) return;
+  if (Object.keys(got).length === SEP_STEMS.length) sepSet(got); else sepUi();
+}
+function sepWire() {
+  const g = plGraph(), c = ac();
+  Object.values(SEP.els || {}).forEach(x => { if (!x.src) { x.src = c.createMediaElementSource(x.el); x.g = c.createGain(); x.src.connect(x.g).connect(g.bus); } });
+}
+function sepApply() {
+  const on = sepOn();
+  if (on) sepWire();
+  const g = PL.graph; if (g?.mixG) g.mixG.gain.value = on || stmOn() ? 0 : 1;
+  const c = sepCfg();
+  SEP_STEMS.forEach(([s]) => {
+    const x = SEP.els?.[s]; if (!x?.g) return;
+    const audible = on && (c.solo ? c.solo === s : !c.mute?.[s]);
+    x.g.gain.value = audible ? Math.pow(sepVol(c, s) / 100, 1.5) : 0;
+  });
+  sepSync(true);
+}
+function sepSync(hard) {
+  if (!SEP) return;
+  const a = PL.audio, on = sepOn() && Object.values(SEP.els || {}).some(x => x.src);
+  Object.values(SEP.els || {}).forEach(x => {
+    const el = x.el;
+    if (!on || !a || a.paused) { if (!el.paused) el.pause(); if (a && hard && on) el.currentTime = a.currentTime; return; }
+    const d = el.currentTime - a.currentTime, r = a.playbackRate;
+    if (hard || Math.abs(d) > 0.25) { el.currentTime = a.currentTime; el.playbackRate = r; }
+    else el.playbackRate = r * (1 - Math.max(-0.03, Math.min(0.03, d * 0.6)));
+    if (el.paused) el.play().catch(() => {});
+  });
+  clearInterval(SEP.timer); SEP.timer = on && a && !a.paused ? setInterval(() => sepSync(false), 200) : 0;
+}
+function sepUi() {
+  if (!$("sepGo")) return;
+  const has = !!SEP.els, c = sepCfg();
+  $("sepGo").hidden = has || SEP.busy; $("sepStop").hidden = !SEP.busy; $("sepDel").hidden = !has || SEP.busy; $("sepReset").hidden = !has || !sepOn();
+  $("sepProg").hidden = !SEP.busy; $("sepMix").hidden = !has;
+  $("sepInfo").hidden = has;
+  if (!SEP.busy && !$("sepMsg").dataset.keep) $("sepMsg").textContent = has ? "Abbassa, togli (M) o isola (S) una traccia. Con tutte al 100% senti il brano originale." : PL.audio ? "Ci vogliono circa 1–2 minuti per un brano di 5 minuti con la scheda grafica, di più senza." : "";
+  if (has) {
+    if (!$("sepMix").children.length) $("sepMix").innerHTML = SEP_STEMS.map(([s, nm]) => `<div class="stem" data-stem="${s}"><b>${nm}</b>
+      <button class="mini-btn" type="button" data-mute="${s}" aria-label="Muto ${nm}" aria-pressed="false">M</button>
+      <button class="mini-btn" type="button" data-solo="${s}" aria-label="Solo ${nm}" aria-pressed="false">S</button>
+      <input type="range" min="0" max="100" step="1" data-vol="${s}" aria-label="Volume ${nm}"><output data-volv="${s}"></output></div>`).join("");
+    SEP_STEMS.forEach(([s]) => {
+      const row = $("sepMix").querySelector(`[data-stem="${s}"]`), v = sepVol(c, s), muted = !!c.mute?.[s], solo = c.solo === s;
+      row.querySelector("[data-mute]").setAttribute("aria-pressed", String(muted)); row.querySelector("[data-solo]").setAttribute("aria-pressed", String(solo));
+      const r = row.querySelector("[data-vol]"); if (document.activeElement !== r) r.value = v; row.querySelector("[data-volv]").textContent = v + "%";
+      row.classList.toggle("off", muted || (!!c.solo && !solo) || v === 0);
+    });
+  }
+}
+function sepChange(fn) { const c = sepCfg(); fn(c); sepSaveCfg(c); sepApply(); sepUi(); }
+$("sepMix").addEventListener("click", e => {
+  const m = e.target.closest("[data-mute]"), so = e.target.closest("[data-solo]");
+  if (m) sepChange(c => { c.mute = c.mute || {}; c.mute[m.dataset.mute] = !c.mute[m.dataset.mute]; });
+  if (so) sepChange(c => { c.solo = c.solo === so.dataset.solo ? null : so.dataset.solo; });
+});
+$("sepMix").addEventListener("input", e => { const r = e.target.closest("[data-vol]"); if (r) sepChange(c => { c.vol = c.vol || {}; c.vol[r.dataset.vol] = +r.value; }); });
+$("sepReset").addEventListener("click", () => sepChange(c => { c.vol = {}; c.mute = {}; c.solo = null; }));
+$("sepDel").addEventListener("click", () => {
+  if (PL.libId) SEP_STEMS.forEach(([s]) => libReq("audio", "readwrite", st2 => st2.delete(PL.libId + ":sep:" + s)).catch(() => {}));
+  if (PL.libId) libUpdate(PL.libId, { sep: false });
+  sepSaveCfg({}); sepReset(); sepApply(); $("sepMsg").textContent = "Tracce eliminate.";
+});
+$("sepStop").addEventListener("click", () => { SEP.worker?.terminate(); SEP.worker = null; SEP.busy = false; $("sepMsg").textContent = "Separazione annullata."; sepUi(); });
+$("sepGo").addEventListener("click", sepStart);
+async function sepStart() {
+  if (SEP.busy || !PL.audio) return;
+  const key = PL.key, libId = PL.libId;
+  SEP.busy = true; $("sepMsg").dataset.keep = "1"; $("sepMsg").textContent = "Leggo il brano…"; $("sepBar").style.width = "0%"; sepUi();
+  try {
+    const file = await (await fetch(PL.audio.src)).arrayBuffer();
+    const ab = await new OfflineAudioContext(2, 44100, 44100).decodeAudioData(file);
+    const L = ab.getChannelData(0).slice(), R = (ab.numberOfChannels > 1 ? ab.getChannelData(1) : ab.getChannelData(0)).slice();
+    const dur = L.length / 44100;
+    const w = SEP.worker = new Worker(URL.createObjectURL(new Blob([SEP_WORKER], { type: "text/javascript" })));
+    SEP.t0 = performance.now();
+    w.onmessage = async e => {
+      const m = e.data; if (SEP.worker !== w) return;
+      if (m.type === "progress") {
+        const ph = m.phase === "models" ? `Scarico i modelli (solo la prima volta)… ${Math.round(m.p * 100)}%` : m.phase === "prepare" ? "Preparo il motore…"
+          : `Separo le tracce… ${Math.round(m.p * 100)}%` + (m.p > 0.05 && m.secs ? ` · mancano circa ${Math.max(1, Math.round(m.secs / m.p * (1 - m.p)))} s` : "") + (m.ep === "webgpu" ? "" : " · senza scheda grafica, più lento");
+        $("sepMsg").textContent = ph; $("sepBar").style.width = Math.round((m.phase === "models" ? m.p * 0.15 : m.phase === "sep" ? 0.15 + m.p * 0.85 : 0.15) * 100) + "%";
+      } else if (m.type === "done") {
+        w.terminate(); SEP.worker = null; SEP.busy = false;
+        if (libId) for (const [s] of SEP_STEMS) { try { await libReq("audio", "readwrite", st2 => st2.put(m.stems[s], libId + ":sep:" + s)); } catch (er) {} }
+        if (libId) libUpdate(libId, { sep: true });
+        const mb = SEP_STEMS.reduce((a, [s]) => a + m.stems[s].size, 0) / 1e6;
+        if (PL.key === key) sepSet(m.stems); else sepUi();
+        $("sepMsg").dataset.keep = "1";
+        $("sepMsg").textContent = `Fatto in ${Math.round(m.secs)} s (${m.ep === "webgpu" ? "scheda grafica" : "processore"}), ${mb.toFixed(1).replace(".", ",")} MB in tutto. Regola le tracce qui sotto.`;
+        SEP.last = { secs: m.secs, ep: m.ep, codec: m.codec, mb, dur, tModel: m.tModel, tDsp: m.tDsp };
+      } else if (m.type === "error") {
+        w.terminate(); SEP.worker = null; SEP.busy = false;
+        $("sepMsg").textContent = "Separazione non riuscita: " + m.msg; sepUi();
+      }
+    };
+    w.postMessage({ L, R, ortBase: SEP_ORT, models: SEP_MODELS, noGpu: !!window.__sepNoGpu, wav: !!window.__sepWav }, [L.buffer, R.buffer]);
+  } catch (err) { SEP.busy = false; $("sepMsg").textContent = "Non riesco a leggere il brano: " + err.message; sepUi(); }
+}
+sepUi();
+if (/[?&]prova(&|$)/.test(location.search)) window.__sep = SEP;
+
 // ---- microfono: nella pagina pubblicata su claude.ai non si può chiedere; lo dico subito, con la pagina giusta
 var MIC_OK = !!(navigator.mediaDevices?.getUserMedia && window.isSecureContext && !(document.featurePolicy && !document.featurePolicy.allowsFeature("microphone")));
 var MIC_NOTE = `<p class="mic-note">Qui il microfono non è disponibile. Per accordare, cantare e allenare la voce apri <a href="https://glovecchio29.github.io/guitarapp/" target="_blank" rel="noopener">la versione su GitHub</a>.</p>`;
@@ -6571,7 +6875,7 @@ function stmWire() {
 function stmApply() {
   const on = stmOn();
   if (on) stmWire();
-  const g = PL.graph; if (g?.mixG) g.mixG.gain.value = on ? 0 : 1;
+  const g = PL.graph; if (g?.mixG) g.mixG.gain.value = on || sepOn() ? 0 : 1;
   if (STM.b?.g) STM.b.g.gain.value = on ? 1 : 0;
   if (STM.v?.g) STM.v.g.gain.value = on ? (st.voMix / 100) ** 1.5 : 0;     // curva morbida: a metà la voce si sente già molto meno
   stmSync(true);
@@ -6587,6 +6891,7 @@ function stmSync(hard) {
     if (el.paused) el.play().catch(() => {});
   });
   clearInterval(STM.timer); STM.timer = on && a && !a.paused ? setInterval(() => stmSync(false), 200) : 0;
+  sepSync(hard);
 }
 function stmUi() {
   const both = !!(STM.b && STM.v);
