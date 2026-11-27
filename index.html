@@ -1565,7 +1565,7 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
     <section class="panel only-scale zone-panel" aria-label="Zone" id="zonePanel">
       <div class="board-head"><h2>Allenati a zone</h2>
         <label class="check"><input type="checkbox" id="zonesOn"> Solo le zone sul manico</label></div>
-      <p class="hint">Scegli uno o più box, interi o solo alcune corde: sul manico restano accese solo quelle note. Le zone valgono in ogni tonalità, perché seguono i box.</p>
+      <p class="hint">Scegli uno o più box, interi o solo alcune corde: sul manico si vedono solo quelle note (con il percorso in diagonale, accese solo quelle del percorso). Le zone valgono in ogni tonalità, perché seguono i box.</p>
       <div class="zone-list" id="zoneList"></div>
       <div class="zone-add">
         <label class="field"><span class="label">Box</span><select id="zoneBox"></select></label>
@@ -3259,6 +3259,8 @@ const boardVertical = () => st.phoneBoard !== "h" && window.matchMedia("(max-wid
 function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   const tun = tuningObj(), maxF = +st.frets, vert = boardVertical();
   const byPc = new Map(cfg.notes.map(n => [n.pc, n]));
+  const zPath = cfg.zones && cfg.zones.length > 1 && (st.zoneSlides || st.zoneDiag) ? zonesPath(cfg.zones) : null;
+  const zPathKeys = zPath && st.zoneDiag ? new Set(zPath.map(n => n.s + ":" + n.f)) : null;
   const inPos = cfg.zones ? new Set(cfg.zones.flatMap(z => z.notes.map(n => n.s + ":" + n.f))) : cfg.pos ? new Set((cfg.shapeOnly ? cfg.pos.notes : bookBox(cfg).notes).map(n => n.s + ":" + n.f)) : null;
   const altPos = cfg.pos && !cfg.shapeOnly ? bookBox(cfg).alt : null;
   const nS = tun.midi.length, labelW = 30, openW = vert ? 46 : 42, x0 = labelW + openW, right = 18;
@@ -3309,7 +3311,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const midi = tun.midi[s] + f, pc = midi % 12, n = byPc.get(pc);
     if (!n || (cfg.onlyPcs && !cfg.onlyPcs.has(pc))) continue;
     const inside = !inPos || inPos.has(s + ":" + f);
-    if (!inside && (!st.ghost || cfg.shapeOnly) && !cfg.zones) continue;    // con le zone il resto del manico resta visibile ma spento
+    if (!inside && (cfg.zones || !st.ghost || cfg.shapeOnly)) continue;    // con le zone si vedono solo le loro note
     const cls = ["n", "d" + degNum(n.deg)];
     if (pc === cfg.root.pc) cls.push("root");
     if (cfg.extraPcs.has(pc)) cls.push("extra");
@@ -3318,6 +3320,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
       else if (cfg.dimOthers) cls.push("dim");
     }
     if (!inside) cls.push("ghost");
+    else if (zPathKeys && !zPathKeys.has(s + ":" + f)) cls.push("ghost");   // percorso in diagonale: accese solo le note del percorso
     else if (altPos && altPos.has(s + ":" + f)) cls.push("alt");
     const label = labelFor(n);
     const fs = label.length > 3 ? ' style="font-size:9.5px"' : "";
@@ -3325,8 +3328,8 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     h += `<g class="${cls.join(" ")}" data-midi="${midi}" transform="translate(${x},${y})"><circle r="${R}"/><text${fs}>${label}</text></g>`;
   }
   // slide tra zone vicine e percorso in diagonale (note numerate)
-  if (cfg.zones && cfg.zones.length > 1 && (st.zoneSlides || st.zoneDiag)) {
-    const path = zonesPath(cfg.zones);
+  if (zPath) {
+    const path = zPath;
     path.forEach((n, i) => {
       if (n.slideFrom != null) {
         const [ax, ay] = at(noteU(n.slideFrom), sy(n.s)), [bx, by] = at(noteU(n.f), sy(n.s));
