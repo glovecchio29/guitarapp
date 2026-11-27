@@ -1091,7 +1091,17 @@ svg .zone-rect { fill: var(--box-hl, #ffffff); fill-opacity: .07; stroke: var(--
 svg .zone-lab { font: 700 11px var(--font-body); fill: var(--fg, #e9ecef); text-anchor: middle; dominant-baseline: central; opacity: .8; }
 svg .zone-slide { fill: none; stroke: currentColor; color: var(--fg, #e9ecef); stroke-width: 2.2; opacity: .85; }
 .board-wrap.zone-drawing { cursor: crosshair; touch-action: none; }
-@media (max-width: 599px) { #zoneDraw { display: none !important; } }   /* sul telefono si usa "Segna sul manico" nel pannello delle zone */
+.board-wrap.hand-edit svg .n { cursor: pointer; }
+.board-wrap.hand-edit svg .n.hand-sel circle { stroke: #fff; stroke-width: 3.5; }
+.hand-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
+.hand-bar .hint { margin: 0; flex: 1 1 200px; }
+#handEdit[aria-pressed="true"], #handEdit2[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.zone-hand { margin-top: 14px; }
+.sj-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.sj-bar .sj-style { flex-direction: row; align-items: center; gap: 6px; } .sj-bar .sj-style select { width: auto; }
+.sj-bar .hint { margin: 0; }
+#sjPlay.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+@media (max-width: 599px) { #zoneDraw, #handEdit2 { display: none !important; } #posLabel { min-width: 0; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }   /* sul telefono si usa "Segna sul manico" nel pannello delle zone */
 .board-wrap.zone-drawing svg { user-select: none; }
 svg .zone-draft { fill: var(--fg, #e9ecef); fill-opacity: .12; stroke: var(--fg, #e9ecef); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
 .zone-draw-hint { margin: 6px 0 0; }
@@ -1560,6 +1570,7 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
           <button class="btn icon" id="prev" aria-label="Precedente">‹</button>
           <span class="pos-label" id="posLabel"></span>
           <button class="btn icon" id="next" aria-label="Successivo">›</button>
+          <button class="btn only-scale" id="handEdit2" type="button" aria-pressed="false" title="Tocca le note una a una per un percorso con gli slide">● Scegli le note</button>
           <button class="btn only-scale" id="zoneDraw" type="button" aria-pressed="false" title="Trascina sul manico per segnare una zona" aria-label="Segna una zona sul manico">✎<span class="zd-txt"> Segna una zona</span></button>
         </div>
       </div>
@@ -1567,6 +1578,11 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
       <div class="board-wrap" id="boardWrap"></div>
       <div class="minis" id="minis" hidden></div>
       <div class="legend" id="legend"></div>
+      <div class="sj-bar only-scale" id="sjBar">
+        <button class="btn" type="button" id="sjPlay">▶ Base</button>
+        <label class="field sj-style"><span class="label">Stile</span><select id="sjStyle"></select></label>
+        <span class="hint" id="sjChords"></span>
+      </div>
     </section>
 
     <section class="panel only-scale zone-panel" aria-label="Zone" id="zonePanel">
@@ -1580,6 +1596,13 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
         <label class="field"><span class="label">Alla corda</span><select id="zoneS1"></select></label>
         <button class="btn" type="button" id="zoneAdd">Aggiungi zona</button>
         <button class="btn" type="button" id="zoneDraw2" aria-pressed="false">✎ Segna sul manico</button>
+      </div>
+      <div class="zone-hand">
+        <span class="label">Percorso a mano</span>
+        <p class="hint">Tocca le note sul manico una dopo l'altra: diventano un percorso numerato. Quando una nota esce dai 4 tasti dove sta la mano e resta sulla stessa corda, lì c'è uno slide.</p>
+        <div class="zone-opts"><button class="btn" type="button" id="handEdit" aria-pressed="false">● Scegli le note</button>
+          <label class="check"><input type="checkbox" id="handOn"> Mostra il percorso a mano</label>
+          <span class="hint" id="handInfo"></span></div>
       </div>
       <div class="zone-opts">
         <label class="check"><input type="checkbox" id="zoneSlides"> Mostra gli slide tra le zone</label>
@@ -2102,6 +2125,7 @@ function zoneSeq(cfg) {
 }
 function stopAll() { playToken++; playing = null; btStop(); updatePlayButtons(); }
 function updatePlayButtons() {
+  if (typeof SJ !== "undefined" && SJ && $("sjPlay")) sjUi();
   $("play").textContent = playing === "main" ? "■ Stop" : st.tab === "prog" ? "▶ Base ritmica" : "▶ Suona la scala";
   $("play").dataset.short = playing === "main" ? "■ Stop" : st.tab === "prog" ? "▶ Base" : "▶ Scala";
   $("playMode").dataset.short = playing === "mode" ? "■ Stop" : "▶ Modo";
@@ -2433,6 +2457,10 @@ function boardContext() {
       kind: scale.parent || scale.deg.length === 5 ? "Box" : "Posizione",
     };
     if (zl) { out.zones = zonesResolve(zl, out); if (out.zones.length) out.pos = null; else delete out.zones; }
+    if (st.tab === "scale" && typeof HP !== "undefined" && HP) {
+      if (HP.on) { out.handEdit = handNotes(); out.zones = undefined; out.pos = null; }
+      else if (st.handOn && st.handPath?.length) { out.hand = handNotes(); out.pos = null; out.zones = undefined; }
+    }
     return out;
   }
   const a = current.analysis[st.progSel];
@@ -3277,9 +3305,10 @@ const boardVertical = () => st.phoneBoard !== "h" && window.matchMedia("(max-wid
 function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   const tun = tuningObj(), maxF = +st.frets, vert = boardVertical();
   const byPc = new Map(cfg.notes.map(n => [n.pc, n]));
-  const zPath = cfg.zones && cfg.zones.length > 1 && (st.zoneSlides || st.zoneDiag) ? zonesPath(cfg.zones) : null;
-  const zPathKeys = zPath && st.zoneDiag ? new Set(zPath.map(n => n.s + ":" + n.f)) : null;
-  const inPos = cfg.zones ? new Set(cfg.zones.flatMap(z => z.notes.map(n => n.s + ":" + n.f))) : cfg.pos ? new Set((cfg.shapeOnly ? cfg.pos.notes : bookBox(cfg).notes).map(n => n.s + ":" + n.f)) : null;
+  const handP = cfg.hand || cfg.handEdit || null;
+  const zPath = handP ? (handP.length ? handP : null) : cfg.zones && cfg.zones.length > 1 && (st.zoneSlides || st.zoneDiag) ? zonesPath(cfg.zones) : null;
+  const zPathKeys = !handP && zPath && st.zoneDiag ? new Set(zPath.map(n => n.s + ":" + n.f)) : null;
+  const inPos = cfg.hand ? new Set(cfg.hand.map(n => n.s + ":" + n.f)) : cfg.zones ? new Set(cfg.zones.flatMap(z => z.notes.map(n => n.s + ":" + n.f))) : cfg.pos ? new Set((cfg.shapeOnly ? cfg.pos.notes : bookBox(cfg).notes).map(n => n.s + ":" + n.f)) : null;
   const altPos = cfg.pos && !cfg.shapeOnly ? bookBox(cfg).alt : null;
   const nS = tun.midi.length, labelW = 30, openW = vert ? 46 : 42, x0 = labelW + openW, right = 18;
   const step = vert ? 64 : 46, U = Math.max(vert ? 0 : 880, x0 + maxF * step + right), L = U - x0 - right;
@@ -3329,7 +3358,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const midi = tun.midi[s] + f, pc = midi % 12, n = byPc.get(pc);
     if (!n || (cfg.onlyPcs && !cfg.onlyPcs.has(pc))) continue;
     const inside = !inPos || inPos.has(s + ":" + f);
-    if (!inside && (cfg.zones || !st.ghost || cfg.shapeOnly)) continue;    // con le zone si vedono solo le loro note
+    if (!inside && (cfg.zones || cfg.hand || !st.ghost || cfg.shapeOnly)) continue;    // con le zone si vedono solo le loro note
     const cls = ["n", "d" + degNum(n.deg)];
     if (pc === cfg.root.pc) cls.push("root");
     if (cfg.extraPcs.has(pc)) cls.push("extra");
@@ -3356,7 +3385,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
       }
     });
     h += `<defs><marker id="zArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="currentColor" stroke-width="1.8"/></marker></defs>`;
-    if (st.zoneDiag) path.forEach((n, i) => { const [x, y] = at(noteU(n.f), sy(n.s)); h += `<text class="zone-num" x="${(+x + R * 0.9).toFixed(1)}" y="${(+y - R * 0.75).toFixed(1)}">${i + 1}</text>`; });
+    if (st.zoneDiag || handP) path.forEach((n, i) => { const [x, y] = at(noteU(n.f), sy(n.s)); h += `<text class="zone-num" x="${(+x + R * 0.9).toFixed(1)}" y="${(+y - R * 0.75).toFixed(1)}">${i + 1}</text>`; });
   }
   if (cfg.shapeOnly && cfg.pos?.mute) cfg.pos.mute.forEach((m, s) => { if (!m) return; const [x, y] = at(x0 - openW / 2, sy(s)); h += `<text class="mute-x" x="${x}" y="${y}">×</text>`; });
   h += "</svg>";
@@ -3380,6 +3409,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
 
 function sequenceFor(cfg) {
   const tun = tuningObj();
+  if (cfg.hand) return cfg.hand.map(n => n.midi);
   if (cfg.zones) return zonesPath(cfg.zones).map(n => n.midi);
   if (cfg.pos) return [...new Set(cfg.pos.notes.map(n => n.midi))].sort((a, b) => a - b);
   const pcs = new Set(cfg.notes.map(n => n.pc));
@@ -3430,8 +3460,9 @@ function renderAll() {
   if (st.tab !== "tuner" && !(st.tab === "ear" && st.earEx === "sing") && !(st.tab === "player" && typeof VO !== "undefined" && VO.on)) micRelease();
   if (st.tab === "ear") earRender();
   if (PERSONALE) ascPlace();
-  if (st.tab === "scale" && typeof zonesUi === "function") setTimeout(zonesUi, 0);
+  if (st.tab === "scale" && typeof zonesUi === "function") setTimeout(() => { zonesUi(); sjUi(); handBar(); }, 0);
   if (st.tab !== "scale" && typeof ZD !== "undefined" && ZD?.on) zoneDrawSet(false);
+  if (st.tab !== "scale" && typeof HP !== "undefined" && HP?.on) { HP.on = false; $("boardWrap").classList.remove("hand-edit"); handBar(); }
   $("labelsQuick").hidden = ["library", "player", "tuner", "ear"].includes(st.tab);
   plLabCycleRender();
   if (st.tab === "library") libRender();
@@ -3453,8 +3484,9 @@ function renderAll() {
   document.body.classList.toggle("rainbow", st.colors === "rainbow");
 
   // analisi della progressione
-  const key = { r: rootFrom(st.key), id: st.keyScale };
-  const toks = (st.prog || "").split(/[\s,|–—]+/).filter(Boolean);
+  const jam = st.tab === "scale" && typeof SJ !== "undefined" && SJ?.on ? scaleJam() : null;   // base della scheda Scale
+  const key = jam ? jam.key : { r: rootFrom(st.key), id: st.keyScale };
+  const toks = jam ? jam.toks : (st.prog || "").split(/[\s,|–—]+/).filter(Boolean);
   current.analysis = toks.map(t => { const c = parseChord(t); return c.error ? c : analyze(c, key); });
   if (st.progSel >= current.analysis.length) st.progSel = 0;
 
@@ -3489,7 +3521,7 @@ function renderAll() {
     $("position").innerHTML = `<option value="0">Tutto il manico</option>` + cfg.positions.map((p, i) =>
       `<option value="${i + 1}">${cfg.kind} ${p.num}: tasti ${p.lo}–${p.hi}</option>`).join("");
     $("position").value = String(st.pos);
-    $("posLabel").textContent = cfg.zones ? `Zone ${cfg.zones.map(z => z.label).join(" ")}` : cfg.pos ? `${cfg.kind} ${cfg.pos.num} · ${kLabel}` : "Tutto il manico";
+    $("posLabel").textContent = cfg.hand ? "Percorso a mano" : cfg.handEdit ? "Scegli le note" : cfg.zones ? `Zone ${cfg.zones.map(z => z.label).join(" ")}` : cfg.pos ? `${cfg.kind} ${cfg.pos.num} · ${kLabel}` : "Tutto il manico";
     // accordi della scala (il riquadro sparisce quando la scala non ne ha, per esempio le pentatoniche)
     document.querySelector('section[aria-label="Accordi della scala"]').classList.toggle("is-empty", !current.chords.length);
     if (current.chords.length) {
@@ -8110,6 +8142,7 @@ $("next").addEventListener("click", () => {
 $("play").addEventListener("click", () => {
   if (playing === "main") { stopAll(); return; }
   if (st.tab === "prog") btStart();
+  else if (current.cfg?.hand) playSequence(current.cfg.hand.map(n => n.midi), "main", current.cfg.hand.map(n => n.s + ":" + n.f));
   else if (current.cfg?.zones) { const z = zoneSeq(current.cfg); playSequence(z.midis, "main", z.keys); }
   else playSequence(upDown(sequenceFor(current.cfg)), "main");
 });
@@ -8909,6 +8942,8 @@ function zonesUi() {
   if (!$("zonePanel")) return;
   const cfg = current.cfg, n = cfg?.positions?.length || 0, nS = tuningObj().midi.length;
   $("zonesOn").checked = !!st.zonesOn; $("zoneSlides").checked = !!st.zoneSlides; $("zoneDiag").checked = !!st.zoneDiag;
+  $("handOn").checked = !!st.handOn; $("handInfo").textContent = handInfo(); $("handEdit").setAttribute("aria-pressed", String(HP.on));
+  if (HP.on) { const ks = new Set(st.handPath.map(k => k.s + ":" + k.f)); document.querySelectorAll("#boardWrap .n").forEach(n => n.classList.toggle("hand-sel", ks.has(n.dataset.k))); }
   const boxSel = $("zoneBox"), keep = boxSel.value;
   boxSel.innerHTML = Array.from({ length: n }, (_, i) => `<option value="${i + 1}">Box ${i + 1}</option>`).join("");
   if (keep && +keep <= n) boxSel.value = keep;
@@ -8938,7 +8973,8 @@ $("zoneAdd").addEventListener("click", () => {
 $("zoneList").addEventListener("click", e => { const b = e.target.closest("[data-zdel]"); if (!b) return; st.zones.splice(+b.dataset.zdel, 1); st.zonePreset = null; save(); renderAll(); });
 $("zoneSets").addEventListener("click", e => {
   const l = e.target.closest("[data-zload]"), d = e.target.closest("[data-zsdel]");
-  if (l) { st.zones = st.zoneSets[+l.dataset.zload].zones.map(z => ({ ...z })); st.zonesOn = true; st.zonePreset = null; save(); renderAll(); }
+  if (l) { const it = st.zoneSets[+l.dataset.zload]; st.zones = it.zones.map(z => ({ ...z })); st.zonesOn = st.zones.length > 0; st.zonePreset = null;
+    if (it.hand) { st.handPath = it.hand.map(k => ({ ...k })); st.handOn = true; } else st.handOn = false; save(); renderAll(); }
   if (d) { st.zoneSets.splice(+d.dataset.zsdel, 1); save(); zonesUi(); }
 });
 $("zonePresets").addEventListener("click", e => {
@@ -8949,16 +8985,112 @@ $("zonePresets").addEventListener("click", e => {
   save(); renderAll();
 });
 $("zoneSave").addEventListener("click", () => {
-  if (!st.zones.length) return;
+  if (!st.zones.length && !(st.handOn && st.handPath.length)) return;
   const name = ($("zoneName").value || "").trim() || st.zones.map((z, i) => `${ZONE_L[i]} box ${z.box}`).join(", ");
-  const i = st.zoneSets.findIndex(x => x.name === name), item = { name, zones: st.zones.map(z => ({ ...z })) };
+  const i = st.zoneSets.findIndex(x => x.name === name), item = { name, zones: st.zones.map(z => ({ ...z })), hand: st.handOn && st.handPath.length ? st.handPath.map(k => ({ ...k })) : null };
   if (i >= 0) st.zoneSets[i] = item; else st.zoneSets.push(item);
   $("zoneName").value = ""; save(); zonesUi();
 });
 
+
+
+// ---- base ritmica nella scheda Scale: accordi tipici per suonare sopra quella scala ----
+var SJ = { on: false };
+// [grado, qualità] per scala: i giri più usati per improvvisare con quella scala
+const SJ_PROG = {
+  major: [["1", "maj"], ["4", "maj"], ["5", "maj"], ["4", "maj"]], minor: [["1", "min"], ["b6", "maj"], ["b7", "maj"], ["1", "min"]],
+  harm: [["1", "min"], ["4", "min"], ["5", "dom7"], ["1", "min"]], mel: [["1", "min"], ["4", "dom7"]],
+  pmin: [["1", "m7"], ["4", "m7"]], pmaj: [["1", "maj"], ["4", "maj"], ["5", "maj"], ["4", "maj"]],
+  blues: [["1", "dom7"], ["4", "dom7"], ["1", "dom7"], ["1", "dom7"], ["4", "dom7"], ["4", "dom7"], ["1", "dom7"], ["1", "dom7"], ["5", "dom7"], ["4", "dom7"], ["1", "dom7"], ["5", "dom7"]],
+  bluesmaj: [["1", "dom7"], ["4", "dom7"], ["1", "dom7"], ["1", "dom7"], ["4", "dom7"], ["4", "dom7"], ["1", "dom7"], ["1", "dom7"], ["5", "dom7"], ["4", "dom7"], ["1", "dom7"], ["5", "dom7"]],
+  dorian: [["1", "m7"], ["4", "dom7"]], phryg: [["1", "min"], ["b2", "maj"]], lydian: [["1", "maj"], ["2", "maj"]],
+  mixo: [["1", "maj"], ["b7", "maj"], ["4", "maj"], ["1", "maj"]], locrian: [["1", "m7b5"], ["b2", "maj"]],
+  phrdom: [["1", "maj"], ["b2", "maj"]], lyddom: [["1", "dom7"], ["2", "maj"]], mixb6: [["1", "maj"], ["b6", "maj"]],
+};
+const SJ_KEY = { major: "major", pmaj: "major", bluesmaj: "major", minor: "minor", pmin: "minor", blues: "minor", harm: "harm", mel: "mel",
+  dorian: "dorian", phryg: "phryg", lydian: "lydian", mixo: "mixo", locrian: "minor", phrdom: "harm", lyddom: "mel", mixb6: "mel" };
+const SJ_SUF = { maj: "", min: "m", dom7: "7", m7: "m7", m7b5: "m7b5", maj7: "maj7" };
+function scaleJam() {
+  const sc = scaleById(st.scale), r = rootFrom(st.root);
+  const minor3 = sc.deg.includes("b3") && !sc.deg.includes("3");
+  const prog = SJ_PROG[st.scale] || [["1", minor3 ? "min" : "maj"]];
+  const name = n => LETTERS[n.li] + (n.acc > 0 ? "#".repeat(n.acc) : n.acc < 0 ? "b".repeat(-n.acc) : "");
+  const toks = prog.map(([d, q]) => name(spell(r.li, r.pc, d)) + SJ_SUF[q]);
+  const kid = SJ_KEY[st.scale] || (minor3 ? "minor" : "major");
+  return { toks, key: { r, id: kid } };
+}
+function sjUi() {
+  const on = SJ.on && playing === "main";
+  $("sjPlay").textContent = on ? "■ Ferma la base" : "▶ Base"; $("sjPlay").classList.toggle("on", on);
+  const j = scaleJam(), nm = t => { const c = parseChord(t); return c.error ? t : noteName(c) + QUAL[c.q].show; };
+  $("sjChords").textContent = `Accordi: ${j.toks.map(nm).join(" · ")}${st.scale === "blues" || st.scale === "bluesmaj" ? " (blues in 12 battute)" : ""}. Strumenti e volumi come in Modi → Sulla progressione.`;
+  if ($("sjStyle").options.length !== Object.keys(STYLES).length) $("sjStyle").innerHTML = Object.entries(STYLES).map(([k, x]) => `<option value="${k}">${x.name}</option>`).join("");
+  $("sjStyle").value = st.style;
+}
+$("sjPlay").addEventListener("click", () => {
+  if (SJ.on && playing === "main") { stopAll(); SJ.on = false; sjUi(); return; }
+  SJ.on = true; renderAll(); btStart(); sjUi();
+});
+$("sjStyle").addEventListener("change", e => { st.style = e.target.value; save(); });
+// ---- percorso a mano: note toccate una a una ----
+var HP = { on: false };
+if (!Array.isArray(st.handPath)) st.handPath = [];
+// la mano copre 4 tasti (indice–mignolo): finché le note stanno lì si suonano con le dita; quando una nota esce da quei
+// 4 tasti la mano cambia posizione, e se la nota è sulla stessa corda della precedente il cambio si fa con uno slide
+function handNotes() {
+  const tun = tuningObj().midi, out = []; let lo = null, hi = null;
+  (st.handPath || []).forEach(k => {
+    if (k.s >= tun.length) return; const n = { s: k.s, f: k.f, midi: tun[k.s] + k.f }, prev = out[out.length - 1];
+    if (n.f === 0) { out.push(n); return; }                 // corda a vuoto: la mano non si sposta
+    if (lo == null) { lo = hi = n.f; }
+    else if (Math.max(hi, n.f) - Math.min(lo, n.f) <= 3) { lo = Math.min(lo, n.f); hi = Math.max(hi, n.f); }
+    else { if (prev && prev.s === n.s && prev.f !== 0) n.slideFrom = prev.f; n.shift = true; lo = hi = n.f; }
+    out.push(n);
+  });
+  return out;
+}
+function handInfo() {
+  const n = handNotes(), sl = n.filter(x => x.slideFrom != null).length;
+  return n.length ? `${n.length} note, ${sl} slide` : "Nessuna nota scelta.";
+}
+function handBar() {
+  let b = $("handBar");
+  if (HP.on && !b) {
+    b = document.createElement("div"); b.className = "hand-bar"; b.id = "handBar";
+    b.innerHTML = `<p class="hint" id="handBarTxt"></p><button class="btn" type="button" id="handUndo">Annulla l'ultima</button><button class="btn" type="button" id="handClear">Cancella</button><button class="btn primary" type="button" id="handDone">Fatto</button>`;
+    $("boardWrap").after(b);
+    $("handUndo").addEventListener("click", () => { st.handPath.pop(); save(); renderAll(); });
+    $("handClear").addEventListener("click", () => { st.handPath = []; save(); renderAll(); });
+    $("handDone").addEventListener("click", () => handEditSet(false));
+  }
+  if (b) { b.hidden = !HP.on; $("handBarTxt").textContent = `Tocca le note in ordine (tocca di nuovo l'ultima per toglierla). ${handInfo()}`; }
+}
+function handEditSet(on) {
+  HP.on = !!on && st.tab === "scale";
+  if (HP.on && typeof ZD !== "undefined" && ZD.on) zoneDrawSet(false);
+  if (!HP.on && st.handPath.length) st.handOn = true;
+  save();
+  $("boardWrap").classList.toggle("hand-edit", HP.on);
+  ["handEdit", "handEdit2"].forEach(id => $(id)?.setAttribute("aria-pressed", String(HP.on)));
+  renderAll(); handBar();
+  if (HP.on) $("boardWrap").scrollIntoView({ block: "center", behavior: "smooth" });
+}
+$("boardWrap").addEventListener("click", e => {
+  if (!HP.on) return;
+  const g = e.target.closest(".n"); if (!g || !g.dataset.k) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  const [s2, f] = g.dataset.k.split(":").map(Number), last = st.handPath[st.handPath.length - 1];
+  if (last && last.s === s2 && last.f === f) st.handPath.pop(); else { st.handPath.push({ s: s2, f }); playMidi(+g.dataset.midi); }
+  save(); renderAll(); handBar();
+}, true);
+$("handEdit").addEventListener("click", () => handEditSet(!HP.on));
+$("handEdit2").addEventListener("click", () => handEditSet(!HP.on));
+$("handOn").addEventListener("change", e => { st.handOn = e.target.checked; save(); renderAll(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && HP.on) handEditSet(false); });
 // ---- segnare una zona sul manico: "✎ Segna una zona", poi trascina (dito o mouse) su tasti e corde ----
 var ZD = { on: false, start: null, cur: null, el: null, justDrew: 0 };
 function zoneDrawSet(on) {
+  if (on && HP.on) handEditSet(false);
   ZD.on = on && st.tab === "scale"; ZD.start = ZD.cur = null; ZD.el?.remove(); ZD.el = null;
   $("boardWrap").classList.toggle("zone-drawing", ZD.on);
   ["zoneDraw", "zoneDraw2"].forEach(id => $(id)?.setAttribute("aria-pressed", String(ZD.on)));
