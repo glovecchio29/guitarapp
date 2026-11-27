@@ -1090,6 +1090,12 @@ svg .live-hit.long { animation-duration: 2.5s; }
 svg .zone-rect { fill: var(--box-hl, #ffffff); fill-opacity: .07; stroke: var(--fg, #e9ecef); stroke-opacity: .55; stroke-width: 1.2; stroke-dasharray: 5 4; }
 svg .zone-lab { font: 700 11px var(--font-body); fill: var(--fg, #e9ecef); text-anchor: middle; dominant-baseline: central; opacity: .8; }
 svg .zone-slide { fill: none; stroke: currentColor; color: var(--fg, #e9ecef); stroke-width: 2.2; opacity: .85; }
+.board-wrap.zone-drawing { cursor: crosshair; touch-action: none; }
+@media (max-width: 599px) { #zoneDraw { display: none !important; } }   /* sul telefono si usa "Segna sul manico" nel pannello delle zone */
+.board-wrap.zone-drawing svg { user-select: none; }
+svg .zone-draft { fill: var(--fg, #e9ecef); fill-opacity: .12; stroke: var(--fg, #e9ecef); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.zone-draw-hint { margin: 6px 0 0; }
+#zoneDraw[aria-pressed="true"], #zoneDraw2[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-anchor: middle; paint-order: stroke; stroke: var(--bg, #1b1e21); stroke-width: 3px; }
 .zone-panel .board-head { flex-wrap: wrap; }
 .zone-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
@@ -1554,6 +1560,7 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
           <button class="btn icon" id="prev" aria-label="Precedente">‹</button>
           <span class="pos-label" id="posLabel"></span>
           <button class="btn icon" id="next" aria-label="Successivo">›</button>
+          <button class="btn only-scale" id="zoneDraw" type="button" aria-pressed="false" title="Trascina sul manico per segnare una zona" aria-label="Segna una zona sul manico">✎<span class="zd-txt"> Segna una zona</span></button>
         </div>
       </div>
       <p class="why only-prog" id="why"></p>
@@ -1572,6 +1579,7 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
         <label class="field"><span class="label">Dalla corda</span><select id="zoneS0"></select></label>
         <label class="field"><span class="label">Alla corda</span><select id="zoneS1"></select></label>
         <button class="btn" type="button" id="zoneAdd">Aggiungi zona</button>
+        <button class="btn" type="button" id="zoneDraw2" aria-pressed="false">✎ Segna sul manico</button>
       </div>
       <div class="zone-opts">
         <label class="check"><input type="checkbox" id="zoneSlides"> Mostra gli slide tra le zone</label>
@@ -2083,6 +2091,15 @@ function flash(midi, ms = 260) {
     el.classList.add("playing"); setTimeout(() => el.classList.remove("playing"), ms);
   });
 }
+// una nota precisa del manico (corda:tasto), per i percorsi nelle zone
+function flashKey(k, ms = 260) {
+  document.querySelectorAll(`#board .n[data-k="${k}"]`).forEach(el => { el.classList.add("playing"); setTimeout(() => el.classList.remove("playing"), ms); });
+}
+// percorso delle zone, su e giù, con la posizione di ogni nota
+function zoneSeq(cfg) {
+  const up = zonesPath(cfg.zones), all = up.concat(up.slice(0, -1).reverse());
+  return { midis: all.map(n => n.midi), keys: all.map(n => n.s + ":" + n.f) };
+}
 function stopAll() { playToken++; playing = null; btStop(); updatePlayButtons(); }
 function updatePlayButtons() {
   $("play").textContent = playing === "main" ? "■ Stop" : st.tab === "prog" ? "▶ Base ritmica" : "▶ Suona la scala";
@@ -2091,13 +2108,14 @@ function updatePlayButtons() {
   $("btPlay").textContent = playing === "main" ? "■ Stop" : "▶ Avvia";
   $("playMode").textContent = playing === "mode" ? "■ Stop" : "▶ Suona il modo";
 }
-function playSequence(seq, who) {
+function playSequence(seq, who, keys = null) {
   btStop();
   const tok = ++playToken, step = 60 / st.bpm / 2 * 1000;
   playing = who; updatePlayButtons();
   seq.forEach((m, i) => setTimeout(() => {
     if (tok !== playToken) return;
-    playMidi(m); flash(m, step * 0.9);
+    playMidi(m);
+    if (keys) flashKey(keys[i], step * 0.9); else flash(m, step * 0.9);
     if (i === seq.length - 1) setTimeout(() => { if (tok === playToken) { playing = null; updatePlayButtons(); } }, step);
   }, i * step));
 }
@@ -3325,7 +3343,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const label = labelFor(n);
     const fs = label.length > 3 ? ' style="font-size:9.5px"' : "";
     const [x, y] = at(noteU(f), sy(s));
-    h += `<g class="${cls.join(" ")}" data-midi="${midi}" transform="translate(${x},${y})"><circle r="${R}"/><text${fs}>${label}</text></g>`;
+    h += `<g class="${cls.join(" ")}" data-midi="${midi}" data-k="${s}:${f}" transform="translate(${x},${y})"><circle r="${R}"/><text${fs}>${label}</text></g>`;
   }
   // slide tra zone vicine e percorso in diagonale (note numerate)
   if (zPath) {
@@ -3343,7 +3361,14 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   if (cfg.shapeOnly && cfg.pos?.mute) cfg.pos.mute.forEach((m, s) => { if (!m) return; const [x, y] = at(x0 - openW / 2, sy(s)); h += `<text class="mute-x" x="${x}" y="${y}">×</text>`; });
   h += "</svg>";
   const wrap = $(wrapId); wrap.innerHTML = h; wrap.classList.toggle("vert", vert);
-  wrap._geo = { at, noteU, sy, R, midi: tun.midi, maxF, pos: cfg.pos && !cfg.shapeOnly ? cfg.pos : null };
+  wrap._geo = { at, noteU, sy, R, midi: tun.midi, maxF, pos: cfg.pos && !cfg.shapeOnly ? cfg.pos : null, rect, gap, nS, fx, x0, openW, top,
+    // dal punto dell'SVG a (tasto, corda): l'inverso di P
+    cell: (x, y) => {
+      const u = vert ? y : (st.lefty ? U - x : x), v = vert ? (st.lefty ? x : V - x) : y;
+      let f = 0; if (u >= x0) { f = maxF; for (let k = 1; k <= maxF; k++) if (u <= fx(k)) { f = k; break; } }
+      const sIdx = Math.max(0, Math.min(nS - 1, nS - 1 - Math.round((v - top) / gap)));
+      return { f, s: sIdx };
+    } };
   // se il manico non entra tutto, scorre da solo per mettere il box (o le zone) al centro
   const focus = cfg.pos || (cfg.zones && { lo: Math.min(...cfg.zones.map(z => z.lo)), hi: Math.max(...cfg.zones.map(z => z.hi)) });
   if (focus) {
@@ -3406,6 +3431,7 @@ function renderAll() {
   if (st.tab === "ear") earRender();
   if (PERSONALE) ascPlace();
   if (st.tab === "scale" && typeof zonesUi === "function") setTimeout(zonesUi, 0);
+  if (st.tab !== "scale" && typeof ZD !== "undefined" && ZD?.on) zoneDrawSet(false);
   $("labelsQuick").hidden = ["library", "player", "tuner", "ear"].includes(st.tab);
   plLabCycleRender();
   if (st.tab === "library") libRender();
@@ -8071,19 +8097,20 @@ $("timeline").addEventListener("click", e => {
 });
 $("prev").addEventListener("click", () => {
   if (st.tab === "prog") { const n = current.analysis.length; if (!n) return; st.progSel = (st.progSel - 1 + n) % n; }
-  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => ({ ...z, box: ((z.box - 1 + (-1) + n) % n) + 1 })); save(); } }   // con le zone: sposto tutta la combinazione di un box
+  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => z.free ? { ...z, f0: Math.max(0, Math.min(+st.frets - (z.f1 - z.f0), z.f0 + (-2))), f1: Math.max(z.f1 - z.f0, Math.min(+st.frets, z.f1 + (-2))) } : { ...z, box: ((z.box - 1 + (-1) + n) % n) + 1 }); save(); } }   // con le zone: sposto tutta la combinazione di un box
   else { const n = current.positions.length + 1; st.pos = (st.pos - 1 + n) % n; }
   renderAll();
 });
 $("next").addEventListener("click", () => {
   if (st.tab === "prog") { const n = current.analysis.length; if (!n) return; st.progSel = (st.progSel + 1) % n; }
-  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => ({ ...z, box: ((z.box - 1 + (1) + n) % n) + 1 })); save(); } }   // con le zone: sposto tutta la combinazione di un box
+  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => z.free ? { ...z, f0: Math.max(0, Math.min(+st.frets - (z.f1 - z.f0), z.f0 + (2))), f1: Math.max(z.f1 - z.f0, Math.min(+st.frets, z.f1 + (2))) } : { ...z, box: ((z.box - 1 + (1) + n) % n) + 1 }); save(); } }   // con le zone: sposto tutta la combinazione di un box
   else { const n = current.positions.length + 1; st.pos = (st.pos + 1) % n; }
   renderAll();
 });
 $("play").addEventListener("click", () => {
   if (playing === "main") { stopAll(); return; }
   if (st.tab === "prog") btStart();
+  else if (current.cfg?.zones) { const z = zoneSeq(current.cfg); playSequence(z.midis, "main", z.keys); }
   else playSequence(upDown(sequenceFor(current.cfg)), "main");
 });
 $("playMode").addEventListener("click", () => {
@@ -8423,7 +8450,7 @@ function ascNewTask() {
   if (ex === "zonepath") {
     if (DRILL_OV) DRILL_OV = null;
     if (!st.zones?.length) { ZP_STAGE = null; AX.task = { kind: "zp", empty: true }; zpMetro(false); renderAll(); ascRender(); return; }
-    const sig = st.zones.map(z => `${z.box}.${z.s0}.${z.s1}`).join("|");
+    const sig = st.zones.map(zoneSig).join("|");
     if (!AX.zp || AX.zp.sig !== sig) {
       const stages = []; st.zones.forEach((_, i) => { stages.push([i]); if (i + 1 < st.zones.length) stages.push([i, i + 1]); });
       AX.zp = { sig, stages, i: 0, round: 1 };
@@ -8559,7 +8586,7 @@ function ascReveal(T) {
   } });
 }
 // ---- percorso a tappe sulle zone ----
-function zpKey(stg) { return `${st.scale}:${st.root}:` + stg.map(k => { const z = st.zones[k]; return `${z.box}.${z.s0}.${z.s1}`; }).join("+"); }
+function zpKey(stg) { return `${st.scale}:${st.root}:` + stg.map(k => zoneSig(st.zones[k])).join("+"); }
 function zpBest(key) { return (st.zoneProg || {})[key] || 0; }
 // metronomo: un colpo per nota, accento ogni 4
 function zpMetro(on) {
@@ -8785,12 +8812,18 @@ function zonesActive() {
 }
 function zonesResolve(list, cfg) {
   const out = [];
+  const tun = tuningObj().midi, pcs = new Set(cfg.notes.map(n => n.pc));
   list.forEach((z, i) => {
-    const p = cfg.positions[z.box - 1]; if (!p) return;
-    const bb = bookBox({ notes: cfg.notes, pos: p }), ns = bb.notes.filter(n => n.s >= z.s0 && n.s <= z.s1);
+    let ns;
+    if (z.free) {                                          // zona segnata a mano: le note della scala in quei tasti e corde
+      ns = []; for (let s2 = z.s0; s2 <= z.s1; s2++) for (let f = z.f0; f <= z.f1; f++) { const m = tun[s2] + f; if (pcs.has(m % 12)) ns.push({ s: s2, f, midi: m }); }
+    } else {
+      const p = cfg.positions[z.box - 1]; if (!p) return;
+      ns = bookBox({ notes: cfg.notes, pos: p }).notes.filter(n => n.s >= z.s0 && n.s <= z.s1);
+    }
     if (!ns.length) return;
     const fr = ns.map(n => n.f);
-    out.push({ ...z, label: z.label || ZONE_L[i] || String(i + 1), notes: ns, lo: Math.min(...fr), hi: Math.max(...fr) });
+    out.push({ ...z, label: z.label || ZONE_L[i] || String(i + 1), notes: ns, lo: z.free ? z.f0 : Math.min(...fr), hi: z.free ? z.f1 : Math.max(...fr) });
   });
   return out.sort((a, b) => (a.lo + a.hi) - (b.lo + b.hi));
 }
@@ -8865,10 +8898,12 @@ const ZONE_PRESETS = [
   { name: "Quattro box in fila", diag: true, z: n => [1, 2, 3, 4].map(b => ({ box: b, s0: 0, s1: n - 1 })),
     why: "Quattro posizioni intere di fila: perfetta per il percorso a tappe (A, A+B, B, B+C…) e per arrivare a tutto il manico." },
 ];
+const zoneSig = z => z.free ? `t${z.f0}-${z.f1}.${z.s0}.${z.s1}` : `${z.box}.${z.s0}.${z.s1}`;
 function zoneName(z, i) {
   const nS = tuningObj().midi.length, str = s => `${nS - s}ª`;
   const whole = z.s0 === 0 && z.s1 === nS - 1;
-  return `<b>${ZONE_L[i] || i + 1}</b> Box ${z.box}${whole ? "" : ` · corde ${str(z.s1)}–${str(z.s0)}`}`;
+  const where = z.free ? (z.f0 === z.f1 ? `Tasto ${z.f0}` : `Tasti ${z.f0}–${z.f1}`) : `Box ${z.box}`;
+  return `<b>${ZONE_L[i] || i + 1}</b> ${where}${whole ? "" : z.s0 === z.s1 ? ` · corda ${str(z.s0)}` : ` · corde ${str(z.s1)}–${str(z.s0)}`}`;
 }
 function zonesUi() {
   if (!$("zonePanel")) return;
@@ -8920,11 +8955,55 @@ $("zoneSave").addEventListener("click", () => {
   if (i >= 0) st.zoneSets[i] = item; else st.zoneSets.push(item);
   $("zoneName").value = ""; save(); zonesUi();
 });
+
+// ---- segnare una zona sul manico: "✎ Segna una zona", poi trascina (dito o mouse) su tasti e corde ----
+var ZD = { on: false, start: null, cur: null, el: null, justDrew: 0 };
+function zoneDrawSet(on) {
+  ZD.on = on && st.tab === "scale"; ZD.start = ZD.cur = null; ZD.el?.remove(); ZD.el = null;
+  $("boardWrap").classList.toggle("zone-drawing", ZD.on);
+  ["zoneDraw", "zoneDraw2"].forEach(id => $(id)?.setAttribute("aria-pressed", String(ZD.on)));
+  let h = $("zoneDrawHint");
+  if (ZD.on && !h) { h = document.createElement("p"); h.className = "hint zone-draw-hint"; h.id = "zoneDrawHint"; $("boardWrap").after(h); }
+  if (h) { h.hidden = !ZD.on; h.textContent = st.zones.length >= 4 ? "Hai già 4 zone: togline una per segnarne un'altra." : "Trascina sul manico da un angolo all'altro della zona (tasti e corde). Esc o di nuovo il pulsante per annullare."; }
+}
+function zdPoint(e) {
+  const svg = $("boardWrap").querySelector("svg"); if (!svg) return null;
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return $("boardWrap")._geo.cell(p.x, p.y);
+}
+function zdRect(a, b) {
+  const f0 = Math.min(a.f, b.f), f1 = Math.max(a.f, b.f), s0 = Math.min(a.s, b.s), s1 = Math.max(a.s, b.s);
+  return { f0, f1, s0, s1 };
+}
+function zdDraw() {
+  const g = $("boardWrap")._geo, svg = $("boardWrap").querySelector("svg"); if (!g || !svg || !ZD.start || !ZD.cur) return;
+  const r = zdRect(ZD.start, ZD.cur), u0 = r.f0 === 0 ? g.x0 - g.openW + 4 : g.fx(r.f0 - 1), u1 = r.f0 === 0 && r.f1 === 0 ? g.x0 : g.fx(r.f1);
+  const tmp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  tmp.innerHTML = g.rect(u0, u1, g.sy(r.s1) - g.gap * 0.48, g.sy(r.s0) + g.gap * 0.48, 'class="zone-draft" rx="6"');
+  ZD.el?.remove(); ZD.el = tmp.firstChild; svg.appendChild(ZD.el);
+}
+$("boardWrap").addEventListener("pointerdown", e => {
+  if (!ZD.on || st.zones.length >= 4) return;
+  const c = zdPoint(e); if (!c) return;
+  e.preventDefault(); $("boardWrap").setPointerCapture?.(e.pointerId);
+  ZD.start = ZD.cur = c; zdDraw();
+});
+$("boardWrap").addEventListener("pointermove", e => { if (!ZD.on || !ZD.start) return; const c = zdPoint(e); if (c && (c.f !== ZD.cur.f || c.s !== ZD.cur.s)) { ZD.cur = c; zdDraw(); } });
+$("boardWrap").addEventListener("pointerup", e => {
+  if (!ZD.on || !ZD.start) return;
+  const r = zdRect(ZD.start, ZD.cur || ZD.start); ZD.justDrew = Date.now();
+  st.zones.push({ free: true, ...r }); st.zonePreset = null; st.zonesOn = true; save();
+  zoneDrawSet(false); renderAll();
+});
+$("boardWrap").addEventListener("click", e => { if (ZD.on || Date.now() - ZD.justDrew < 400) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+["zoneDraw", "zoneDraw2"].forEach(id => $(id).addEventListener("click", () => { zoneDrawSet(!ZD.on); if (ZD.on && id === "zoneDraw2") $("boardWrap").scrollIntoView({ block: "center", behavior: "smooth" }); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && ZD.on) zoneDrawSet(false); });
 $("zonePlay").addEventListener("click", () => {
   if (playing === "main") { stopAll(); return; }
   const cfg = current.cfg; if (!cfg?.zones) { st.zonesOn = true; save(); renderAll(); }
   const c2 = current.cfg; if (!c2?.zones) return;
-  playSequence(upDown(zonesPath(c2.zones).map(n => n.midi)), "main");
+  const zq = zoneSeq(c2); playSequence(zq.midis, "main", zq.keys);
 });
 window.addEventListener("hashchange", () => {
   const t = HASH_TAB[location.hash] || st.tab;
