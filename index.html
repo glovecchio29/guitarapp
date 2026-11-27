@@ -1588,7 +1588,7 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
     <section class="panel only-scale zone-panel" aria-label="Zone" id="zonePanel">
       <div class="board-head"><h2>Allenati a zone</h2>
         <label class="check"><input type="checkbox" id="zonesOn"> Solo le zone sul manico</label></div>
-      <p class="hint">Scegli uno o più box, interi o solo alcune corde: sul manico si vedono solo quelle note (con il percorso in diagonale, accese solo quelle del percorso). Le zone valgono in ogni tonalità, perché seguono i box.</p>
+      <p class="hint">Scegli uno o più box, interi o solo alcune corde: sul manico restano accese solo quelle note, le altre si vedono trasparenti (con il percorso in diagonale, accese solo quelle del percorso). Le zone valgono in ogni tonalità, perché seguono i box.</p>
       <div class="zone-list" id="zoneList"></div>
       <div class="zone-add">
         <label class="field"><span class="label">Box</span><select id="zoneBox"></select></label>
@@ -3358,7 +3358,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const midi = tun.midi[s] + f, pc = midi % 12, n = byPc.get(pc);
     if (!n || (cfg.onlyPcs && !cfg.onlyPcs.has(pc))) continue;
     const inside = !inPos || inPos.has(s + ":" + f);
-    if (!inside && (cfg.zones || cfg.hand || !st.ghost || cfg.shapeOnly)) continue;    // con le zone si vedono solo le loro note
+    if (!inside && !cfg.zones && !cfg.hand && (!st.ghost || cfg.shapeOnly)) continue;   // con zone o percorso a mano il resto del manico resta trasparente
     const cls = ["n", "d" + degNum(n.deg)];
     if (pc === cfg.root.pc) cls.push("root");
     if (cfg.extraPcs.has(pc)) cls.push("extra");
