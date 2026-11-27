@@ -1086,6 +1086,21 @@ svg .live-hit.long { animation-duration: 2.5s; }
 .sep-mix .stem output { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .sep-mix .mini-btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .sep-mix .stem.off b { opacity: .45; }
+/* ---- allenati a zone ---- */
+svg .zone-rect { fill: var(--box-hl, #ffffff); fill-opacity: .07; stroke: var(--fg, #e9ecef); stroke-opacity: .55; stroke-width: 1.2; stroke-dasharray: 5 4; }
+svg .zone-lab { font: 700 11px var(--font-body); fill: var(--fg, #e9ecef); text-anchor: middle; dominant-baseline: central; opacity: .8; }
+svg .zone-slide { fill: none; stroke: currentColor; color: var(--fg, #e9ecef); stroke-width: 2.2; opacity: .85; }
+svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-anchor: middle; paint-order: stroke; stroke: var(--bg, #1b1e21); stroke-width: 3px; }
+.zone-panel .board-head { flex-wrap: wrap; }
+.zone-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.zone-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 14px; }
+.zone-chip b { font-family: var(--font-mono); }
+.zone-chip button { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 4px; }
+.zone-add, .zone-opts, .zone-save { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 8px; }
+.zone-add .field { min-width: 110px; }
+.zone-sets { margin-top: 14px; display: grid; gap: 6px; }
+.zone-setlist { display: flex; flex-wrap: wrap; gap: 6px; }
+.zone-save input { flex: 1 1 220px; }
 </style>
 
 <div class="app">
@@ -1543,6 +1558,30 @@ svg .live-hit.long { animation-duration: 2.5s; }
       <div class="board-wrap" id="boardWrap"></div>
       <div class="minis" id="minis" hidden></div>
       <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="panel only-scale zone-panel" aria-label="Zone" id="zonePanel">
+      <div class="board-head"><h2>Allenati a zone</h2>
+        <label class="check"><input type="checkbox" id="zonesOn"> Solo le zone sul manico</label></div>
+      <p class="hint">Scegli uno o più box, interi o solo alcune corde: sul manico restano accese solo quelle note. Le zone valgono in ogni tonalità, perché seguono i box.</p>
+      <div class="zone-list" id="zoneList"></div>
+      <div class="zone-add">
+        <label class="field"><span class="label">Box</span><select id="zoneBox"></select></label>
+        <label class="field"><span class="label">Dalla corda</span><select id="zoneS0"></select></label>
+        <label class="field"><span class="label">Alla corda</span><select id="zoneS1"></select></label>
+        <button class="btn" type="button" id="zoneAdd">Aggiungi zona</button>
+      </div>
+      <div class="zone-opts">
+        <label class="check"><input type="checkbox" id="zoneSlides"> Mostra gli slide tra le zone</label>
+        <label class="check"><input type="checkbox" id="zoneDiag"> Percorso in diagonale (note numerate)</label>
+        <button class="btn primary" type="button" id="zonePlay">▶ Suona il percorso</button>
+      </div>
+      <div class="zone-sets">
+        <span class="label">Combinazioni salvate</span>
+        <div class="zone-setlist" id="zoneSets"></div>
+        <div class="zone-save"><input type="text" id="zoneName" placeholder="Assolo in La, box 1+2 alto" autocomplete="off"><button class="btn" type="button" id="zoneSave">Salva</button></div>
+      </div>
+      <p class="hint" data-only="personale">Per allenarti con l'ascolto delle note: Pratica → Suona → "Zone: percorso a tappe".</p>
     </section>
 
     <section class="panel only-prog" aria-label="Backing track">
@@ -2360,13 +2399,16 @@ function boardContext() {
     if (chordSel != null && chordSel >= current.chords.length) chordSel = null;
     const chord = chordSel != null ? current.chords[chordSel] : null;
     const useDegs = scale.parent || scale.deg;
-    return {
+    const zl = zonesActive();
+    const out = {
       title: `<span>${noteName(r)}</span> ${scale.name.toLowerCase()}`, formulaTitle: "Formula",
       notes, root: r, pos: posI > 0 ? positions[posI - 1] : null, positions,
       chordPcs: chord ? new Set(chord.pcs) : null, chordRootPc: chord ? chord.rootPc : null, dimOthers: true,
       extraPcs: new Set(scale.deg.filter(d => !useDegs.includes(d)).map(d => spell(r.li, r.pc, d).pc)),
       kind: scale.parent || scale.deg.length === 5 ? "Box" : "Posizione",
     };
+    if (zl) { out.zones = zonesResolve(zl, out); if (out.zones.length) out.pos = null; else delete out.zones; }
+    return out;
   }
   const a = current.analysis[st.progSel];
   const k = rootFrom(st.key);
@@ -3210,7 +3252,7 @@ const boardVertical = () => st.phoneBoard !== "h" && window.matchMedia("(max-wid
 function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   const tun = tuningObj(), maxF = +st.frets, vert = boardVertical();
   const byPc = new Map(cfg.notes.map(n => [n.pc, n]));
-  const inPos = cfg.pos ? new Set((cfg.shapeOnly ? cfg.pos.notes : bookBox(cfg).notes).map(n => n.s + ":" + n.f)) : null;
+  const inPos = cfg.zones ? new Set(cfg.zones.flatMap(z => z.notes.map(n => n.s + ":" + n.f))) : cfg.pos ? new Set((cfg.shapeOnly ? cfg.pos.notes : bookBox(cfg).notes).map(n => n.s + ":" + n.f)) : null;
   const altPos = cfg.pos && !cfg.shapeOnly ? bookBox(cfg).alt : null;
   const nS = tun.midi.length, labelW = 30, openW = vert ? 46 : 42, x0 = labelW + openW, right = 18;
   const step = vert ? 64 : 46, U = Math.max(vert ? 0 : 880, x0 + maxF * step + right), L = U - x0 - right;
@@ -3233,6 +3275,13 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
   h += `<defs><linearGradient id="wood" x1="0" y1="0" x2="${vert ? 1 : 0}" y2="${vert ? 0 : 1}"><stop offset="0" stop-color="var(--wood-1)"/><stop offset="1" stop-color="var(--wood-2)"/></linearGradient></defs>`;
   h += rect(x0, fx(maxF), top - 14, bottom + 14, 'rx="3" fill="url(#wood)"');
   if (cfg.pos) h += rect(cfg.pos.lo === 0 ? x0 - openW + 4 : fx(cfg.pos.lo - 1), fx(cfg.pos.hi), top - 14, bottom + 14, 'fill="var(--box-hl, #ffffff)" opacity=".08"');
+  // zone: un riquadro per zona (box intero o solo alcune corde), con la sua lettera
+  if (cfg.zones) cfg.zones.forEach(z => {
+    const u0 = z.lo === 0 ? x0 - openW + 4 : fx(z.lo - 1), u1 = fx(z.hi), v0 = sy(z.s1) - gap * 0.48, v1 = sy(z.s0) + gap * 0.48;
+    h += rect(u0, u1, v0, v1, 'class="zone-rect" rx="6"');
+    const [lx, ly] = at(u0 + 9, v0 + 9);
+    h += `<text class="zone-lab" x="${lx}" y="${ly}">${z.label}</text>`;
+  });
   const single = [3, 5, 7, 9, 15, 17, 19, 21].filter(f => f <= maxF), dbl = [12, 24].filter(f => f <= maxF);
   const midV = (top + bottom) / 2, dot = (u, v) => { const [x, y] = at(u, v); return `<circle cx="${x}" cy="${y}" r="6" fill="var(--inlay)" opacity=".75"/>`; };
   single.forEach(f => h += dot(noteU(f), midV));
@@ -3253,7 +3302,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const midi = tun.midi[s] + f, pc = midi % 12, n = byPc.get(pc);
     if (!n || (cfg.onlyPcs && !cfg.onlyPcs.has(pc))) continue;
     const inside = !inPos || inPos.has(s + ":" + f);
-    if (!inside && (!st.ghost || cfg.shapeOnly)) continue;
+    if (!inside && (!st.ghost || cfg.shapeOnly) && !cfg.zones) continue;    // con le zone il resto del manico resta visibile ma spento
     const cls = ["n", "d" + degNum(n.deg)];
     if (pc === cfg.root.pc) cls.push("root");
     if (cfg.extraPcs.has(pc)) cls.push("extra");
@@ -3268,13 +3317,27 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
     const [x, y] = at(noteU(f), sy(s));
     h += `<g class="${cls.join(" ")}" data-midi="${midi}" transform="translate(${x},${y})"><circle r="${R}"/><text${fs}>${label}</text></g>`;
   }
+  // slide tra zone vicine e percorso in diagonale (note numerate)
+  if (cfg.zones && cfg.zones.length > 1 && (st.zoneSlides || st.zoneDiag)) {
+    const path = zonesPath(cfg.zones);
+    path.forEach((n, i) => {
+      if (n.slideFrom != null) {
+        const [ax, ay] = at(noteU(n.slideFrom), sy(n.s)), [bx, by] = at(noteU(n.f), sy(n.s));
+        const mx = (+ax + +bx) / 2, my = (+ay + +by) / 2, dx = +bx - +ax, dy = +by - +ay, len = Math.hypot(dx, dy) || 1, nx = -dy / len * 14, ny = dx / len * 14;
+        h += `<path class="zone-slide" d="M${ax} ${ay} Q${(mx + nx).toFixed(1)} ${(my + ny).toFixed(1)} ${bx} ${by}" marker-end="url(#zArr)"/>`;
+      }
+    });
+    h += `<defs><marker id="zArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="currentColor" stroke-width="1.8"/></marker></defs>`;
+    if (st.zoneDiag) path.forEach((n, i) => { const [x, y] = at(noteU(n.f), sy(n.s)); h += `<text class="zone-num" x="${(+x + R * 0.9).toFixed(1)}" y="${(+y - R * 0.75).toFixed(1)}">${i + 1}</text>`; });
+  }
   if (cfg.shapeOnly && cfg.pos?.mute) cfg.pos.mute.forEach((m, s) => { if (!m) return; const [x, y] = at(x0 - openW / 2, sy(s)); h += `<text class="mute-x" x="${x}" y="${y}">×</text>`; });
   h += "</svg>";
   const wrap = $(wrapId); wrap.innerHTML = h; wrap.classList.toggle("vert", vert);
   wrap._geo = { at, noteU, sy, R, midi: tun.midi, maxF, pos: cfg.pos && !cfg.shapeOnly ? cfg.pos : null };
-  // se il manico non entra tutto, scorre da solo per mettere il box al centro
-  if (cfg.pos) {
-    const c = ((cfg.pos.lo === 0 ? x0 - openW : fx(cfg.pos.lo - 1)) + fx(cfg.pos.hi)) / 2;
+  // se il manico non entra tutto, scorre da solo per mettere il box (o le zone) al centro
+  const focus = cfg.pos || (cfg.zones && { lo: Math.min(...cfg.zones.map(z => z.lo)), hi: Math.max(...cfg.zones.map(z => z.hi)) });
+  if (focus) {
+    const c = ((focus.lo === 0 ? x0 - openW : fx(focus.lo - 1)) + fx(focus.hi)) / 2;
     if (vert && wrap.scrollHeight > wrap.clientHeight + 4) wrap.scrollTop = Math.max(0, c - wrap.clientHeight / 2);
     else if (!vert && wrap.scrollWidth > wrap.clientWidth + 4) wrap.scrollLeft = Math.max(0, flipU(c) - wrap.clientWidth / 2);
   }
@@ -3282,6 +3345,7 @@ function renderBoard(cfg, wrapId = "boardWrap", svgId = "board") {
 
 function sequenceFor(cfg) {
   const tun = tuningObj();
+  if (cfg.zones) return zonesPath(cfg.zones).map(n => n.midi);
   if (cfg.pos) return [...new Set(cfg.pos.notes.map(n => n.midi))].sort((a, b) => a - b);
   const pcs = new Set(cfg.notes.map(n => n.pc));
   const start = tun.midi[0] + mod12(cfg.root.pc - tun.midi[0]);
@@ -3331,6 +3395,7 @@ function renderAll() {
   if (st.tab !== "tuner" && !(st.tab === "ear" && st.earEx === "sing") && !(st.tab === "player" && typeof VO !== "undefined" && VO.on)) micRelease();
   if (st.tab === "ear") earRender();
   if (PERSONALE) ascPlace();
+  if (st.tab === "scale" && typeof zonesUi === "function") setTimeout(zonesUi, 0);
   $("labelsQuick").hidden = ["library", "player", "tuner", "ear"].includes(st.tab);
   plLabCycleRender();
   if (st.tab === "library") libRender();
@@ -3388,7 +3453,7 @@ function renderAll() {
     $("position").innerHTML = `<option value="0">Tutto il manico</option>` + cfg.positions.map((p, i) =>
       `<option value="${i + 1}">${cfg.kind} ${p.num}: tasti ${p.lo}–${p.hi}</option>`).join("");
     $("position").value = String(st.pos);
-    $("posLabel").textContent = cfg.pos ? `${cfg.kind} ${cfg.pos.num} · ${kLabel}` : "Tutto il manico";
+    $("posLabel").textContent = cfg.zones ? `Zone ${cfg.zones.map(z => z.label).join(" ")}` : cfg.pos ? `${cfg.kind} ${cfg.pos.num} · ${kLabel}` : "Tutto il manico";
     // accordi della scala (il riquadro sparisce quando la scala non ne ha, per esempio le pentatoniche)
     document.querySelector('section[aria-label="Accordi della scala"]').classList.toggle("is-empty", !current.chords.length);
     if (current.chords.length) {
@@ -8255,7 +8320,7 @@ const ASC_EX = {
   prog: [["free", "Improvvisa sulla base"], ["change", "Nota dell'accordo a ogni cambio"], ["char", "Nota caratteristica del modo"], ["arp", "Solo arpeggi"]],
   player: [["free", "Improvvisa sul brano"], ["tones", "Solo note dell'accordo"]],
   drill: [["find", "Trova la nota"], ["scale", "Suona la scala nel box"], ["modebox", "Modi: suona il modo nel box"], ["char", "Modi: nota caratteristica"],
-    ["degree", "Modi: suona il grado"], ["notes", "Teoria: tutte le note del modo"], ["chordnotes", "Teoria: note dell'accordo"]],
+    ["degree", "Modi: suona il grado"], ["notes", "Teoria: tutte le note del modo"], ["chordnotes", "Teoria: note dell'accordo"], ["zonepath", "Zone: percorso a tappe"]],
 };
 const ASC_GOAL = {
   free: "Improvvisa: le note del modo si accendono di verde sul manico (piene se sono note dell'accordo), quelle fuori di rosso.",
@@ -8267,6 +8332,7 @@ const ASC_GOAL = {
   char: "Ti nomino un modo: suona la sua nota caratteristica, quella che lo distingue dagli altri modi. Dopo la risposta il manico mostra il modo intero.",
   degree: "Ti chiedo un grado di un modo (per esempio la ♭3 di Re dorico): trova la nota e suonala.",
   notes: "Suona tutte le note del modo, in qualsiasi ordine e ottava. Le note fuori dal modo contano come errori.",
+  zonepath: "Le tue zone (Scale → Manico) diventano tappe: A, poi A+B con lo slide, poi B, B+C… Suona ogni tappa a tempo col metronomo, una nota per colpo: se è pulita (nessun errore, ritmo regolare) il tempo sale e passi alla tappa dopo; alla fine si ripassano le tappe più deboli.",
   chordnotes: "Suona tutte le note dell'accordo (fondamentale, terza, quinta e, se c'è, settima), in qualsiasi ordine e ottava.",
   find: "Ti chiedo una nota: trovala sul manico e suonala. Le note del manico restano nascoste finché non rispondi. L'app sente la nota ma non la corda: suonala davvero sulla corda chiesta, vale come giusta anche se la stessa nota sta su un'altra corda.",
   scale: "Suona la scala del box salendo e poi scendendo, una nota alla volta: la prossima è cerchiata sul manico.",
@@ -8341,6 +8407,26 @@ const drOrd = d => { const n = +d.replace(/[^\d]/g, ""); return `${n}º grado`; 
 function ascNewTask() {
   const ex = ascEx(), cfg = current.cfg, wrap = $("boardWrap");
   wrap.classList.remove("asc-hide", "show-roots"); AX.heard = null; AX.solved = null;
+  if (ex !== "zonepath") { zpMetro(false); if (ZP_STAGE) { ZP_STAGE = null; renderAll(); } }
+  if (ex === "zonepath") {
+    if (DRILL_OV) DRILL_OV = null;
+    if (!st.zones?.length) { ZP_STAGE = null; AX.task = { kind: "zp", empty: true }; zpMetro(false); renderAll(); ascRender(); return; }
+    const sig = st.zones.map(z => `${z.box}.${z.s0}.${z.s1}`).join("|");
+    if (!AX.zp || AX.zp.sig !== sig) {
+      const stages = []; st.zones.forEach((_, i) => { stages.push([i]); if (i + 1 < st.zones.length) stages.push([i, i + 1]); });
+      AX.zp = { sig, stages, i: 0, round: 1 };
+    }
+    const stg = AX.zp.stages[AX.zp.i];
+    ZP_STAGE = stg.map(k => ({ ...st.zones[k], label: ZONE_L[k] }));
+    AX.task = { kind: "zp", title: stg.map(k => ZONE_L[k]).join("+"), key: zpKey(stg) };
+    st.zpBpm = st.zpBpm || 60;
+    renderAll();
+    setTimeout(() => {
+      const c2 = current.cfg; AX.seq = c2?.zones ? upDown(sequenceFor(c2)) : []; AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0; AX.zpLen = AX.seq.length;
+      ascTarget(); ascRender(); zpMetro(true);
+    }, 0);
+    ascRender(); return;
+  }
   if (["modebox", "char", "degree", "notes", "chordnotes"].includes(ex)) {
     const tun = tuningObj(), maxF = +st.frets;
     if (ex === "chordnotes") {
@@ -8382,6 +8468,7 @@ function ascNewTask() {
     ascRender(); return;
   }
   if (DRILL_OV) { DRILL_OV = null; renderAll(); }
+  if (ZP_STAGE) { ZP_STAGE = null; renderAll(); }
   if (ex === "find") {
     const tun = tuningObj();
     let pc; do { pc = Math.floor(Math.random() * 12); } while (pc === AX.lastPc);
@@ -8435,7 +8522,7 @@ function ascHeldDrill(n) {
 }
 function ascNoteDrill(n) {
   const ex = ascEx(), pc = mod12(n.midi);
-  if (!["scale", "modebox"].includes(ex)) return;        // le altre domande le decide la nota tenuta (ascHeldDrill)
+  if (!["scale", "modebox", "zonepath"].includes(ex)) return;        // le altre domande le decide la nota tenuta (ascHeldDrill)
   const want = AX.seq?.[AX.seqI]; if (want == null) return;
   if (n.midi === want) {
     if (!AX.t0) AX.t0 = n.t; AX.times.push(n.t); AX.right++; AX.seqI++;
@@ -8443,6 +8530,7 @@ function ascNoteDrill(n) {
     if (AX.seqI >= AX.seq.length) {
       AX.done = { secs: n.t - AX.t0, wrong: AX.wrong, even: ascEven(AX.times), title: ex === "modebox" ? `${AX.task?.title} · ${AX.task?.pos}` : "" };
       AX.laps.push(AX.done); if (AX.laps.length > 8) AX.laps.shift(); AX.seqI = 0; AX.t0 = 0; AX.times = []; AX.wrong = 0;
+      if (ex === "zonepath") zpLapDone(AX.done);
       if (ex === "modebox") { AX.right++; AX.seq = null; $("boardWrap").classList.remove("asc-hide", "show-roots"); setTimeout(() => { if (ASC.on && ascEx() === "modebox") ascNewTask(); }, 1500); }
     }
     ascTarget();
@@ -8457,6 +8545,39 @@ function ascReveal(T) {
     el.setAttribute("class", "live-hit reveal-hit " + (s === T.s || T.s === -1 ? "tone" : "in") + (T.s === -1 ? " long" : "")); el.setAttribute("transform", `translate(${x},${y})`);
     el.innerHTML = `<circle r="${g.R + 2}"/><text>${T.name}</text>`; svg.appendChild(el); setTimeout(() => el.remove(), T.s === -1 ? 2500 : 1400);
   } });
+}
+// ---- percorso a tappe sulle zone ----
+function zpKey(stg) { return `${st.scale}:${st.root}:` + stg.map(k => { const z = st.zones[k]; return `${z.box}.${z.s0}.${z.s1}`; }).join("+"); }
+function zpBest(key) { return (st.zoneProg || {})[key] || 0; }
+// metronomo: un colpo per nota, accento ogni 4
+function zpMetro(on) {
+  clearInterval(AX.metro); AX.metro = 0;
+  if (!on || !ASC.on) return;
+  const c = ac(); let next = c.currentTime + 0.2, k = 0;
+  const tick = () => {
+    const beat = 60 / (st.zpBpm || 60);
+    while (next < c.currentTime + 0.15) {
+      const o = c.createOscillator(), g = c.createGain(), hi = k % 4 === 0; o.frequency.value = hi ? 1900 : 1400;
+      o.connect(g).connect(c.destination); g.gain.setValueAtTime(0.0001, next); g.gain.exponentialRampToValueAtTime(hi ? 0.25 : 0.15, next + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, next + 0.03);
+      o.start(next); o.stop(next + 0.05); next += beat; k++;
+    }
+  };
+  tick(); AX.metro = setInterval(tick, 40);
+}
+function zpLapDone(d) {
+  const z = AX.zp; if (!z || !AX.task) return;
+  const key = AX.task.key, bpm = st.zpBpm || 60, beat = 60 / bpm, avg = AX.zpLen > 1 ? d.secs / (AX.zpLen - 1) : beat, ratio = avg / beat;
+  const tempoOk = ratio > 0.82 && ratio < 1.22, clean = d.wrong === 0 && (d.even ?? 100) <= 25 && tempoOk;
+  d.title = `${AX.task.title} · ${bpm} bpm${clean ? " · pulita" : ""}`;
+  if (clean) {
+    st.zoneProg = st.zoneProg || {}; st.zoneProg[key] = Math.max(zpBest(key), bpm);
+    st.zpBpm = Math.min(200, bpm + 4);
+    if (z.i + 1 < z.stages.length) z.i++;
+    else { z.round++; let wi = 0, wb = Infinity; z.stages.forEach((stg, i) => { const b = zpBest(zpKey(stg)); if (b < wb) { wb = b; wi = i; } }); z.i = wi; st.zpBpm = Math.max(40, (wb || 60) - 4); }
+    AX.zpMsg = `Pulita a ${bpm} bpm: ${z.i < z.stages.length ? "prossima tappa" : ""}.`;
+  } else AX.zpMsg = d.wrong ? `${d.wrong} note sbagliate: ripeti la tappa.` : !tempoOk ? `Sei andato ${ratio < 1 ? "più veloce" : "più lento"} del metronomo (circa ${Math.round(60 / avg)} bpm invece di ${bpm}): una nota per colpo, ripeti la tappa.` : `Ritmo poco regolare (${d.even}%): ripeti la tappa, puoi abbassare il tempo.`;
+  save(); AX.seq = null; zpMetro(false);
+  setTimeout(() => { if (ASC.on && ascEx() === "zonepath") ascNewTask(); }, 1500);
 }
 // risposta giusta: il manico mostra il modo (o le note dell'accordo) e dopo un attimo arriva la domanda successiva
 function ascSolved(midi, pcs) {
@@ -8496,6 +8617,7 @@ function ascStop() {
   $("boardWrap").classList.remove("asc-hide", "show-roots"); document.querySelectorAll("#boardWrap .n.target").forEach(e => e.classList.remove("target"));
   ascRelease(); ascRender();
   if (DRILL_OV) { DRILL_OV = null; setTimeout(renderAll, 0); }
+  zpMetro(false); if (ZP_STAGE) { ZP_STAGE = null; setTimeout(renderAll, 0); }
 }
 async function ascCalibrate() {
   try { await ascCapture(); } catch (e) { $("ascMsg").textContent = "Ingresso non disponibile: " + e.message; return; }
@@ -8524,6 +8646,7 @@ function ascPanelBuild() {
   sec.innerHTML = `<div class="asc-head"><h2>Suona e ascolta</h2><button class="btn primary" id="ascGo" aria-pressed="false">Suona e ascolta</button></div>
     <div class="fields asc-fields"><label class="field"><span class="label">Esercizio</span><select id="ascExSel"></select></label>
       <label class="field" id="ascFamF" hidden><span class="label">Modi</span><select id="ascFam"></select></label>
+      <label class="field" id="ascZpF" hidden><span class="label">Tempo di partenza (bpm)</span><input type="number" id="ascZpBpm" min="40" max="200" step="4" inputmode="numeric"></label>
       <label class="field" id="ascLevelF" hidden><span class="label">Sul manico</span><select id="ascLevel"><option value="box">Tutto il box</option><option value="roots">Solo le toniche (a memoria)</option></select></label></div>
     <p class="hint asc-goal" id="ascGoal"></p>
     <div class="asc-task" id="ascTask" hidden></div>
@@ -8552,6 +8675,7 @@ function ascPlace() {
     $("ascExSel").addEventListener("change", e => { st["ascEx_" + ASC.ctx] = e.target.value; save(); if (ASC.on) { ascStop(); ascStart(); } else { if (DRILL_OV) { DRILL_OV = null; renderAll(); } ascRender(); } });
     $("ascIn").addEventListener("change", e => { st.ascIn = e.target.value; save(); const on = ASC.on; if (on) ascStop(); ascRelease(); if (on) ascStart(); });
     $("ascCal").addEventListener("click", ascCalibrate);
+    $("ascZpBpm").addEventListener("change", e => { st.zpBpm = Math.max(40, Math.min(200, Math.round(+e.target.value || 60))); save(); if (ASC.on && ascEx() === "zonepath") zpMetro(true); ascRender(); });
     $("ascFam").innerHTML = DR_FAMS.map(([v, n]) => `<option value="${v}">${n}</option>`).join("");
     $("ascFam").addEventListener("change", e => { st.drillFam = e.target.value; save(); AX.lastMode = null; if (ASC.on && ["modebox", "char", "degree", "notes"].includes(ascEx())) ascNewTask(); });
     $("ascLevel").addEventListener("change", e => { st.drillLevel = e.target.value; save(); if (ASC.on && ascEx() === "modebox") $("boardWrap").classList.toggle("asc-hide", st.drillLevel === "roots"), $("boardWrap").classList.toggle("show-roots", st.drillLevel === "roots"); });
@@ -8583,6 +8707,7 @@ function ascRender() {
   const task = $("ascTask"); task.hidden = true;
   if (ASC.ctx === "drill") {
     $("ascLevelF").hidden = ex !== "modebox"; $("ascLevel").value = st.drillLevel === "roots" ? "roots" : "box";
+    $("ascZpF").hidden = ex !== "zonepath"; if (document.activeElement !== $("ascZpBpm")) $("ascZpBpm").value = st.zpBpm || 60;
     $("ascFamF").hidden = !["modebox", "char", "degree", "notes"].includes(ex); $("ascFam").value = st.drillFam || "maj";
     const T = AX.task;
     if (T && (T.kind === "one" || T.kind === "set") && ["char", "degree", "notes", "chordnotes"].includes(ex)) {
@@ -8605,12 +8730,14 @@ function ascRender() {
     } else {
       task.hidden = !ASC.on;
       const m = AX.seq?.[AX.seqI];
-      const head = ex === "modebox" && T?.title ? `Suona <b>${T.title}</b> <span class="hint">${T.pos || ""}</span><br>` : "";
+      if (ex === "zonepath" && T?.empty) { task.hidden = false; task.innerHTML = `<span class="hint">Prima scegli le zone in Scale → Manico ("Allenati a zone").</span>`; $("ascScore").innerHTML = ""; $("ascTotal").textContent = ""; $("ascLaps").innerHTML = ""; return; }
+      const head = ex === "modebox" && T?.title ? `Suona <b>${T.title}</b> <span class="hint">${T.pos || ""}</span><br>`
+        : ex === "zonepath" && T?.title ? `Tappa <b>${T.title}</b> <span class="hint">${(AX.zp?.i ?? 0) + 1} di ${AX.zp?.stages.length || 1} · ${st.zpBpm || 60} bpm${AX.zp?.round > 1 ? " · ripasso" : ""}</span>${AX.zpMsg ? `<br><span class="hint">${AX.zpMsg}</span>` : ""}<br>` : "";
       const sp = current.cfg?.notes?.find(x => x.pc === mod12(m ?? 0)), nm = m == null ? "" : sp ? drNm(sp).replace(/^(\S+)/, `$1${Math.floor(m / 12) - 1}`) : ascNm(m);
       task.innerHTML = head + (m != null ? `Prossima: <b>${nm}</b> <span class="hint">(${AX.seqI + 1} di ${AX.seq.length})</span>` : ex === "modebox" ? "Bravo! Arriva il prossimo modo…" : "Scegli una scala con delle note.");
       $("ascScore").innerHTML = stat(AX.seq ? `${AX.seqI}/${AX.seq.length}` : "–", "note del giro") + stat(AX.wrong, "sbagliate in questo giro") +
         (AX.done ? stat(AX.done.secs.toFixed(1).replace(".", ",") + " s", "ultimo giro") + stat(AX.done.even == null ? "–" : AX.done.even + "%", "irregolarità (meno è meglio)") : "");
-      $("ascTotal").textContent = "";
+      $("ascTotal").textContent = ex === "zonepath" && AX.zp ? "Tappe: " + AX.zp.stages.map(stg => { const b = zpBest(zpKey(stg)); return `${stg.map(k => ZONE_L[k]).join("+")} ${b ? b + " bpm ✓" : "–"}`; }).join(" · ") : "";
       $("ascLaps").innerHTML = AX.laps.slice().reverse().map((l, i) => `<li><b>${l.title || "Giro " + (AX.laps.length - i)}</b> ${l.secs.toFixed(1).replace(".", ",")} s · ${l.wrong} sbagliate · irregolarità ${l.even ?? "–"}%</li>`).join("");
     }
     return;
@@ -8633,6 +8760,114 @@ function ascRender() {
 }
 // per le prove senza microfono: ?prova nell'indirizzo espone l'ingresso dell'ascolto
 if (PERSONALE && /[?&]prova\b/.test(location.search)) window.__asc = { feed: (t, x) => ascBlock(t, x), ASC, AX, start: ascStart, place: ascPlace, ctx: () => ac() };
+
+// ===================== Allenati a zone: box interi o pezzi di box, slide tra zone, percorso in diagonale =====================
+// Una zona = { box: numero del box, s0, s1: corde dalla più grave (0) alla più acuta }. Seguono i box, quindi valgono in ogni tonalità.
+var ZP_STAGE = null;                                     // Pratica → Suona: zone della tappa in corso
+if (!Array.isArray(st.zones)) st.zones = [];
+if (!Array.isArray(st.zoneSets)) st.zoneSets = [];
+const ZONE_L = "ABCD";
+function zonesActive() {
+  if (st.tab === "drill" && ZP_STAGE) return ZP_STAGE;
+  return st.tab === "scale" && st.zonesOn && st.zones?.length ? st.zones : null;
+}
+function zonesResolve(list, cfg) {
+  const out = [];
+  list.forEach((z, i) => {
+    const p = cfg.positions[z.box - 1]; if (!p) return;
+    const bb = bookBox({ notes: cfg.notes, pos: p }), ns = bb.notes.filter(n => n.s >= z.s0 && n.s <= z.s1);
+    if (!ns.length) return;
+    const fr = ns.map(n => n.f);
+    out.push({ ...z, label: z.label || ZONE_L[i] || String(i + 1), notes: ns, lo: Math.min(...fr), hi: Math.max(...fr) });
+  });
+  return out.sort((a, b) => (a.lo + a.hi) - (b.lo + b.hi));
+}
+// percorso che sale attraversando le zone in ordine di tasto: in ogni zona si suonano le corde fino a quella dello slide,
+// poi si scivola sulla stessa corda nella zona dopo. Corda dello slide: la più centrale tra quelle comuni con un salto di 1–4 tasti.
+function zonesPath(zs) {
+  const nS = tuningObj().midi.length, byS = (z, s) => z.notes.filter(n => n.s === s).sort((a, b) => a.f - b.f);
+  if (zs.length === 1) return [...zs[0].notes].sort((a, b) => a.midi - b.midi || a.s - b.s).filter((n, i, a) => i === 0 || n.midi !== a[i - 1].midi);
+  // corde dello slide, distribuite tra le corde comuni a zone consecutive
+  const slides = []; let sMin = 0;
+  for (let i = 0; i < zs.length - 1; i++) {
+    const A = zs[i], B = zs[i + 1], left = zs.length - 1 - i;
+    const ideal = Math.round((nS - 1) * (i + 1) / zs.length);
+    const cands = [];
+    for (let s = sMin; s < nS; s++) {
+      const a = byS(A, s), b = byS(B, s); if (!a.length || !b.length) continue;
+      const fa = a[a.length - 1].f, after = b.filter(n => n.f > fa);
+      if (!after.length || after[0].f - fa > 4) continue;
+      if (s > nS - left) continue;                                // lascio corde per gli slide dopo
+      cands.push({ s, fa, fb: after[0].f, score: Math.abs(s - ideal) + (after[0].f - fa === 2 ? 0 : 0.4) });
+    }
+    if (!cands.length) return zonesPath([zs[i]]).concat(zonesPath(zs.slice(i + 1)));   // zone non collegabili: una dopo l'altra
+    const c = cands.sort((x, y) => x.score - y.score)[0]; slides.push(c); sMin = c.s;
+  }
+  const path = []; let zi = 0, s = 0;
+  for (; s < nS; s++) {
+    const z = zs[zi];
+    const sl = slides[zi];
+    if (sl && s === sl.s) {
+      byS(z, s).filter(n => n.f <= sl.fa).forEach(n => path.push({ ...n }));
+      zi++;
+      byS(zs[zi], s).filter(n => n.f >= sl.fb).forEach((n, k) => path.push(k === 0 ? { ...n, slideFrom: sl.fa } : { ...n }));
+      // se ci sono più slide sulla stessa corda, continuo sulla stessa corda
+      while (slides[zi] && slides[zi].s === s) { const s2 = slides[zi]; const last = path[path.length - 1]; zi++; byS(zs[zi], s).filter(n => n.f >= s2.fb).forEach((n, k) => path.push(k === 0 ? { ...n, slideFrom: s2.fa } : { ...n })); }
+    } else byS(z, s).forEach(n => path.push({ ...n }));
+  }
+  return path;
+}
+function zoneName(z, i) {
+  const nS = tuningObj().midi.length, str = s => `${nS - s}ª`;
+  const whole = z.s0 === 0 && z.s1 === nS - 1;
+  return `<b>${ZONE_L[i] || i + 1}</b> Box ${z.box}${whole ? "" : ` · corde ${str(z.s1)}–${str(z.s0)}`}`;
+}
+function zonesUi() {
+  if (!$("zonePanel")) return;
+  const cfg = current.cfg, n = cfg?.positions?.length || 0, nS = tuningObj().midi.length;
+  $("zonesOn").checked = !!st.zonesOn; $("zoneSlides").checked = !!st.zoneSlides; $("zoneDiag").checked = !!st.zoneDiag;
+  const boxSel = $("zoneBox"), keep = boxSel.value;
+  boxSel.innerHTML = Array.from({ length: n }, (_, i) => `<option value="${i + 1}">Box ${i + 1}</option>`).join("");
+  if (keep && +keep <= n) boxSel.value = keep;
+  if ($("zoneS0").options.length !== nS) {
+    const opts = Array.from({ length: nS }, (_, s) => `<option value="${s}">${nS - s}ª (${noteName(pcRoot(mod12(tuningObj().midi[s])))})</option>`).join("");
+    $("zoneS0").innerHTML = opts; $("zoneS1").innerHTML = opts; $("zoneS0").value = "0"; $("zoneS1").value = String(nS - 1);
+  }
+  $("zoneList").innerHTML = st.zones.length ? st.zones.map((z, i) => `<span class="zone-chip">${zoneName(z, i)}<button type="button" data-zdel="${i}" aria-label="Togli la zona ${ZONE_L[i]}">×</button></span>`).join("")
+    : `<span class="hint">Nessuna zona: aggiungine una qui sotto.</span>`;
+  $("zoneAdd").disabled = st.zones.length >= 4;
+  $("zoneSets").innerHTML = st.zoneSets.length ? st.zoneSets.map((x, i) => `<span class="zone-chip"><button type="button" class="zone-load" data-zload="${i}">${esc(x.name)}</button><button type="button" data-zsdel="${i}" aria-label="Elimina ${esc(x.name)}">×</button></span>`).join("")
+    : `<span class="hint">Nessuna combinazione salvata.</span>`;
+}
+function zonesChanged() { if (st.zones.length && !st.zonesOn) st.zonesOn = true; save(); renderAll(); }
+$("zonesOn").addEventListener("change", e => { st.zonesOn = e.target.checked; save(); renderAll(); });
+$("zoneSlides").addEventListener("change", e => { st.zoneSlides = e.target.checked; save(); renderAll(); });
+$("zoneDiag").addEventListener("change", e => { st.zoneDiag = e.target.checked; save(); renderAll(); });
+$("zoneAdd").addEventListener("click", () => {
+  let s0 = +$("zoneS0").value, s1 = +$("zoneS1").value; if (s0 > s1) [s0, s1] = [s1, s0];
+  const z = { box: +$("zoneBox").value || 1, s0, s1 };
+  if (st.zones.some(x => x.box === z.box && x.s0 === z.s0 && x.s1 === z.s1) || st.zones.length >= 4) return;
+  st.zones.push(z); zonesChanged();
+});
+$("zoneList").addEventListener("click", e => { const b = e.target.closest("[data-zdel]"); if (!b) return; st.zones.splice(+b.dataset.zdel, 1); save(); renderAll(); });
+$("zoneSets").addEventListener("click", e => {
+  const l = e.target.closest("[data-zload]"), d = e.target.closest("[data-zsdel]");
+  if (l) { st.zones = st.zoneSets[+l.dataset.zload].zones.map(z => ({ ...z })); st.zonesOn = true; save(); renderAll(); }
+  if (d) { st.zoneSets.splice(+d.dataset.zsdel, 1); save(); zonesUi(); }
+});
+$("zoneSave").addEventListener("click", () => {
+  if (!st.zones.length) return;
+  const name = ($("zoneName").value || "").trim() || st.zones.map((z, i) => `${ZONE_L[i]} box ${z.box}`).join(", ");
+  const i = st.zoneSets.findIndex(x => x.name === name), item = { name, zones: st.zones.map(z => ({ ...z })) };
+  if (i >= 0) st.zoneSets[i] = item; else st.zoneSets.push(item);
+  $("zoneName").value = ""; save(); zonesUi();
+});
+$("zonePlay").addEventListener("click", () => {
+  if (playing === "main") { stopAll(); return; }
+  const cfg = current.cfg; if (!cfg?.zones) { st.zonesOn = true; save(); renderAll(); }
+  const c2 = current.cfg; if (!c2?.zones) return;
+  playSequence(upDown(zonesPath(c2.zones).map(n => n.midi)), "main");
+});
 window.addEventListener("hashchange", () => {
   const t = HASH_TAB[location.hash] || st.tab;
   if (t !== st.tab) { stopAll(); st.tab = t; renderAll(); }
