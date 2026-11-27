@@ -1101,6 +1101,8 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
 .zone-sets { margin-top: 14px; display: grid; gap: 6px; }
 .zone-setlist { display: flex; flex-wrap: wrap; gap: 6px; }
 .zone-save input { flex: 1 1 220px; }
+.zone-preset { font-size: 13px; padding: 6px 10px; }
+.zone-preset[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 </style>
 
 <div class="app">
@@ -1575,6 +1577,11 @@ svg .zone-num { font: 700 10px var(--font-mono); fill: var(--fg, #e9ecef); text-
         <label class="check"><input type="checkbox" id="zoneSlides"> Mostra gli slide tra le zone</label>
         <label class="check"><input type="checkbox" id="zoneDiag"> Percorso in diagonale (note numerate)</label>
         <button class="btn primary" type="button" id="zonePlay">▶ Suona il percorso</button>
+      </div>
+      <div class="zone-sets">
+        <span class="label">Pronte</span>
+        <div class="zone-setlist" id="zonePresets"></div>
+        <p class="hint" id="zonePresetHint"></p>
       </div>
       <div class="zone-sets">
         <span class="label">Combinazioni salvate</span>
@@ -8061,11 +8068,13 @@ $("timeline").addEventListener("click", e => {
 });
 $("prev").addEventListener("click", () => {
   if (st.tab === "prog") { const n = current.analysis.length; if (!n) return; st.progSel = (st.progSel - 1 + n) % n; }
+  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => ({ ...z, box: ((z.box - 1 + (-1) + n) % n) + 1 })); save(); } }   // con le zone: sposto tutta la combinazione di un box
   else { const n = current.positions.length + 1; st.pos = (st.pos - 1 + n) % n; }
   renderAll();
 });
 $("next").addEventListener("click", () => {
   if (st.tab === "prog") { const n = current.analysis.length; if (!n) return; st.progSel = (st.progSel + 1) % n; }
+  else if (current.cfg?.zones && st.tab === "scale") { const n = current.positions.length; if (n) { st.zones = st.zones.map(z => ({ ...z, box: ((z.box - 1 + (1) + n) % n) + 1 })); save(); } }   // con le zone: sposto tutta la combinazione di un box
   else { const n = current.positions.length + 1; st.pos = (st.pos + 1) % n; }
   renderAll();
 });
@@ -8787,6 +8796,22 @@ function zonesResolve(list, cfg) {
 function zonesPath(zs) {
   const nS = tuningObj().midi.length, byS = (z, s) => z.notes.filter(n => n.s === s).sort((a, b) => a.f - b.f);
   if (zs.length === 1) return [...zs[0].notes].sort((a, b) => a.midi - b.midi || a.s - b.s).filter((n, i, a) => i === 0 || n.midi !== a[i - 1].midi);
+  // zone strette (1–2 corde, scale "orizzontali"): si sale nota per nota scegliendo ogni volta la posizione più vicina
+  // a dove si è, preferendo andare avanti sul manico; uno slide quando si resta sulla stessa corda e si salta di 2+ tasti
+  if (zs.every(z => z.s1 - z.s0 <= 1)) {
+    const all = []; zs.forEach((z, zi) => z.notes.forEach(n => all.push({ ...n, zi })));
+    const pitches = [...new Set(all.map(n => n.midi))].sort((a, b) => a - b), path = [];
+    let prev = null;
+    for (const m of pitches) {
+      const opts = all.filter(n => n.midi === m);
+      const pick = !prev ? opts.sort((a, b) => a.f - b.f)[0]
+        : opts.sort((a, b) => (Math.abs(a.f - prev.f) + (a.f < prev.f - 1 ? 4 : 0) + (a.zi < prev.zi ? 3 : 0)) - (Math.abs(b.f - prev.f) + (b.f < prev.f - 1 ? 4 : 0) + (b.zi < prev.zi ? 3 : 0)))[0];
+      const n = { ...pick };
+      if (prev && prev.s === n.s && n.f - prev.f >= 2 && n.zi !== prev.zi) n.slideFrom = prev.f;
+      path.push(n); prev = n;
+    }
+    return path;
+  }
   // corde dello slide, distribuite tra le corde comuni a zone consecutive
   const slides = []; let sMin = 0;
   for (let i = 0; i < zs.length - 1; i++) {
@@ -8817,6 +8842,26 @@ function zonesPath(zs) {
   }
   return path;
 }
+// combinazioni pronte, dai modi più comuni di studiare le posizioni. Le corde si contano dalla più grave (0).
+// Valgono per qualsiasi scala: se un box non esiste (per esempio il 6 in una pentatonica) si salta.
+const ZONE_PRESETS = [
+  { name: "Un box alla volta", diag: false, z: n => [{ box: 1, s0: 0, s1: n - 1 }],
+    why: "Il punto di partenza: impara bene una posizione sola, salendo e scendendo, prima di collegarla alle altre. Con ‹ › nella scheda puoi passare al box dopo." },
+  { name: "Box 1 + 2 con lo slide", diag: true, z: n => [{ box: 1, s0: 0, s1: n - 1 }, { box: 2, s0: 0, s1: n - 1 }],
+    why: "Il collegamento più usato negli assoli: due box vicini, le note in comune e lo slide per passare dall'uno all'altro." },
+  { name: "Assoli sulle corde alte", diag: true, z: n => [1, 2, 3].map(b => ({ box: b, s0: n - 3, s1: n - 1 })),
+    why: "Le frasi soliste stanno quasi tutte sulle prime tre corde: qui le colleghi attraverso tre box, con gli slide sulle corde Sol e Si." },
+  { name: "Riff sulle corde basse", diag: false, z: n => [1, 2].map(b => ({ box: b, s0: 0, s1: 2 })),
+    why: "Le tre corde gravi di due box vicini: la zona dei riff e delle linee di basso." },
+  { name: "Diagonale su tre box", diag: true, z: n => [1, 2, 3].map(b => ({ box: b, s0: 0, s1: n - 1 })),
+    why: "Sali lungo il manico attraversando tre posizioni: un pezzo di ogni box, con uno slide ogni due corde. Il classico esercizio per smettere di restare chiusi in un box." },
+  { name: "Due corde lungo il manico", diag: true, z: n => [1, 2, 3, 4].map(b => ({ box: b, s0: n - 2, s1: n - 1 })),
+    why: "Scala orizzontale sulle prime due corde attraverso quattro box: impari a muoverti in lungo sul manico, non solo in largo." },
+  { name: "Una corda sola", diag: true, z: n => [1, 2, 3, 4].map(b => ({ box: b, s0: n - 1, s1: n - 1 })),
+    why: "Tutta la scala sulla prima corda, da un box all'altro: allena l'orecchio agli intervalli e a sapere dove sei sul manico." },
+  { name: "Quattro box in fila", diag: true, z: n => [1, 2, 3, 4].map(b => ({ box: b, s0: 0, s1: n - 1 })),
+    why: "Quattro posizioni intere di fila: perfetta per il percorso a tappe (A, A+B, B, B+C…) e per arrivare a tutto il manico." },
+];
 function zoneName(z, i) {
   const nS = tuningObj().midi.length, str = s => `${nS - s}ª`;
   const whole = z.s0 === 0 && z.s1 === nS - 1;
@@ -8836,10 +8881,13 @@ function zonesUi() {
   $("zoneList").innerHTML = st.zones.length ? st.zones.map((z, i) => `<span class="zone-chip">${zoneName(z, i)}<button type="button" data-zdel="${i}" aria-label="Togli la zona ${ZONE_L[i]}">×</button></span>`).join("")
     : `<span class="hint">Nessuna zona: aggiungine una qui sotto.</span>`;
   $("zoneAdd").disabled = st.zones.length >= 4;
+  if (!$("zonePresets").children.length) $("zonePresets").innerHTML = ZONE_PRESETS.map((x, i) => `<button type="button" class="btn zone-preset" data-zpre="${i}" aria-pressed="false">${x.name}</button>`).join("");
+  $("zonePresets").querySelectorAll("[data-zpre]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.zpre === st.zonePreset && st.zonesOn)));
+  $("zonePresetHint").textContent = st.zonePreset != null && ZONE_PRESETS[st.zonePreset] ? ZONE_PRESETS[st.zonePreset].why : "Tocca una combinazione per caricarla; poi puoi modificarla e salvarla con un tuo nome.";
   $("zoneSets").innerHTML = st.zoneSets.length ? st.zoneSets.map((x, i) => `<span class="zone-chip"><button type="button" class="zone-load" data-zload="${i}">${esc(x.name)}</button><button type="button" data-zsdel="${i}" aria-label="Elimina ${esc(x.name)}">×</button></span>`).join("")
     : `<span class="hint">Nessuna combinazione salvata.</span>`;
 }
-function zonesChanged() { if (st.zones.length && !st.zonesOn) st.zonesOn = true; save(); renderAll(); }
+function zonesChanged() { st.zonePreset = null; if (st.zones.length && !st.zonesOn) st.zonesOn = true; save(); renderAll(); }
 $("zonesOn").addEventListener("change", e => { st.zonesOn = e.target.checked; save(); renderAll(); });
 $("zoneSlides").addEventListener("change", e => { st.zoneSlides = e.target.checked; save(); renderAll(); });
 $("zoneDiag").addEventListener("change", e => { st.zoneDiag = e.target.checked; save(); renderAll(); });
@@ -8849,11 +8897,18 @@ $("zoneAdd").addEventListener("click", () => {
   if (st.zones.some(x => x.box === z.box && x.s0 === z.s0 && x.s1 === z.s1) || st.zones.length >= 4) return;
   st.zones.push(z); zonesChanged();
 });
-$("zoneList").addEventListener("click", e => { const b = e.target.closest("[data-zdel]"); if (!b) return; st.zones.splice(+b.dataset.zdel, 1); save(); renderAll(); });
+$("zoneList").addEventListener("click", e => { const b = e.target.closest("[data-zdel]"); if (!b) return; st.zones.splice(+b.dataset.zdel, 1); st.zonePreset = null; save(); renderAll(); });
 $("zoneSets").addEventListener("click", e => {
   const l = e.target.closest("[data-zload]"), d = e.target.closest("[data-zsdel]");
-  if (l) { st.zones = st.zoneSets[+l.dataset.zload].zones.map(z => ({ ...z })); st.zonesOn = true; save(); renderAll(); }
+  if (l) { st.zones = st.zoneSets[+l.dataset.zload].zones.map(z => ({ ...z })); st.zonesOn = true; st.zonePreset = null; save(); renderAll(); }
   if (d) { st.zoneSets.splice(+d.dataset.zsdel, 1); save(); zonesUi(); }
+});
+$("zonePresets").addEventListener("click", e => {
+  const b = e.target.closest("[data-zpre]"); if (!b) return;
+  const i = +b.dataset.zpre, pr = ZONE_PRESETS[i], nS = tuningObj().midi.length, nBox = current.cfg?.positions?.length || 5;
+  st.zones = pr.z(nS).filter(z => z.box <= nBox).slice(0, 4);
+  st.zonePreset = i; st.zonesOn = true; st.zoneSlides = pr.diag; st.zoneDiag = pr.diag;
+  save(); renderAll();
 });
 $("zoneSave").addEventListener("click", () => {
   if (!st.zones.length) return;
